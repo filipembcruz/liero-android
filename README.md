@@ -25,6 +25,6 @@ camada adiciona plataforma Android, controles de toque/gamepad e um menu inicial
 - **Screenshots**: capturas em 3120×1440 (S25 Ultra), 2340×1080 e 1920×1080.
 - **APK**: arm64-v8a, armeabi-v7a, x86_64. Assinatura: secrets `LIERO_KEYSTORE_B64`/`LIERO_KEYSTORE_PASSWORD` se existirem; senão uma chave gerada e guardada no cache do Actions.
 - **Emulator**: roda o APK real, toca nos botões, testa Voltar/Home, salva logcat.
-- **Release**: em tags `v*`.
+- **Release**: quando `VERSION` muda em `main` e existe `docs/release-notes/v<VERSION>.md`.
 
 Licenças: ver [LICENSES.md](LICENSES.md).

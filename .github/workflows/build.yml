@@ -160,7 +160,7 @@ jobs:
         run: |
           export LIERO_KEYSTORE=$HOME/liero-keystore/release.jks
           export LIERO_KEYSTORE_PASSWORD="$(cat ~/liero-keystore/pw)" LIERO_KEY_PASSWORD="$(cat ~/liero-keystore/pw)" LIERO_KEY_ALIAS=liero
-          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then export VERSION_NAME="${GITHUB_REF#refs/tags/v}"; else export VERSION_NAME="0.0.${GITHUB_RUN_NUMBER}-dev"; fi
+          export VERSION_NAME="$(cat ../VERSION | tr -d '[:space:]')"
           gradle --no-daemon assembleRelease
           mkdir -p ../out && cp app/build/outputs/apk/release/app-release.apk ../out/liero-mobile.apk
           ls -la ../out
@@ -199,7 +199,9 @@ jobs:
 
   release:
     name: GitHub release
-    if: startsWith(github.ref, 'refs/tags/v')
+    # A release is published when VERSION on main names a version that has
+    # release notes (docs/release-notes/v<VERSION>.md) and no release yet.
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     needs: [fidelity, screenshots, android, emulator]
     runs-on: ubuntu-24.04
     steps:
@@ -209,11 +211,13 @@ jobs:
       - name: Create release
         env: { GH_TOKEN: '${{ github.token }}' }
         run: |
-          cp out/liero-mobile.apk "out/liero-mobile-${GITHUB_REF_NAME}.apk"
-          NOTES=docs/release-notes/${GITHUB_REF_NAME}.md
-          [ -f "$NOTES" ] || NOTES=/dev/null
-          gh release create "$GITHUB_REF_NAME" "out/liero-mobile-${GITHUB_REF_NAME}.apk" \
-            --title "Liero Mobile ${GITHUB_REF_NAME}" --notes-file "$NOTES"
+          V="v$(cat VERSION | tr -d '[:space:]')"
+          NOTES="docs/release-notes/$V.md"
+          if [ ! -f "$NOTES" ]; then echo "no release notes for $V, skipping"; exit 0; fi
+          if gh release view "$V" >/dev/null 2>&1; then echo "$V already released, skipping"; exit 0; fi
+          cp out/liero-mobile.apk "out/liero-mobile-$V.apk"
+          gh release create "$V" "out/liero-mobile-$V.apk" --target "$GITHUB_SHA" \
+            --title "Liero Mobile $V" --notes-file "$NOTES"
 
   publish-screenshots:
     name: Publish screenshots to branch ci-screenshots
