@@ -283,6 +283,13 @@ struct Worm : gvl::shared
 	, steerableCount(0)
 	, statsX(0)
 	{
+		// Port fix: reacts[] is read by the CPU AI before the first physics
+		// update. Upstream leaves it uninitialised (heap garbage); the DOS
+		// original effectively started from zeroed memory. Zero it so CPU
+		// behaviour is deterministic.
+		for (int i = 0; i < 4; ++i)
+			reacts[i] = 0;
+
 		makeSightGreen = false;
 
 		ready = true;

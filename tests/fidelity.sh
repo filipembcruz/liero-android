@@ -19,8 +19,9 @@ for spec in "cpu 1 20000" "cpu 7 20000" "cpu 1234 20000" "scripted 42 12000" "sc
   if cmp -s "$OUT/ref_$1_$2.txt" "$OUT/cand_$1_$2.txt"; then
     echo "PASS  $1 seed=$2  ($frames frames identical; $(tail -1 "$OUT/ref_$1_$2.txt"))"
   else
-    first=$(diff <(cut -d' ' -f1-2 "$OUT/ref_$1_$2.txt") <(cut -d' ' -f1-2 "$OUT/cand_$1_$2.txt") | head -2 | tr '\n' ' ')
-    echo "FAIL  $1 seed=$2  first difference: $first"
+    diff "$OUT/ref_$1_$2.txt" "$OUT/cand_$1_$2.txt" > "$OUT/diff_$1_$2.txt" || true
+    echo "FAIL  $1 seed=$2  first difference:"
+    head -6 "$OUT/diff_$1_$2.txt" || true
     fail=1
   fi
 done

@@ -243,7 +243,8 @@ void Input::applyKey(uint32_t dosKey, bool down, Controller* controller)
 	if (sentDos[dosKey] == down)
 		return;
 	sentDos[dosKey] = down;
-	if (SDL_getenv("LIERO_DEBUG_KEYS")) SDL_Log("vkey %u %d ctrl=%p mode=%d", dosKey, (int)down, (void*)controller, (int)mode_);
+	if (down)
+		pressedAt[dosKey] = frameNo;
 	gfx.dosKeys[dosKey] = down;
 	if (controller)
 		controller->onKey(dosKey, down);
@@ -285,7 +286,13 @@ void Input::sync(Controller* controller)
 	}
 
 	for (uint32_t k = 1; k < 177; ++k)
+	{
+		// A quick tap (down+up within one frame) must still be seen by the
+		// game for one frame, so delay such releases to the next frame.
+		if (!desired[k] && sentDos[k] && pressedAt[k] == frameNo)
+			continue;
 		applyKey(k, desired[k], controller);
+	}
 
 	// Rising edge of the swap tap queues a weapon-change pulse.
 	bool swapNow = v[VSwapTap];
@@ -302,6 +309,7 @@ void Input::releaseAll(Controller* controller)
 	pauseBtn.down = false; pauseBtn.finger = -1;
 	stickFinger = -1; knobDX = knobDY = 0;
 	swapPhase = 0; swapQueued = false;
+	++frameNo;
 	for (uint32_t k = 1; k < 177; ++k)
 		applyKey(k, false, controller);
 }
@@ -328,6 +336,7 @@ void Input::update(Controller* controller)
 		swapQueued = false;
 	}
 	sync(controller);
+	++frameNo; // the game frame that follows sees everything pressed so far
 }
 
 bool Input::handleEvent(SDL_Event const& ev, Controller* controller)

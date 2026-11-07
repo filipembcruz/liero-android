@@ -132,7 +132,7 @@ public class LauncherActivity extends Activity {
 
     /** Draws artwork scaled to fit (letterbox filled with a dimmed cover copy). */
     abstract static class ArtView extends View {
-        final Bitmap art;
+        final Bitmap art, blurred;
         final Matrix fit = new Matrix(), cover = new Matrix();
         final Paint bmpPaint = new Paint(Paint.FILTER_BITMAP_FLAG | Paint.ANTI_ALIAS_FLAG);
         final Paint dim = new Paint();
@@ -143,7 +143,10 @@ public class LauncherActivity extends Activity {
             BitmapFactory.Options o = new BitmapFactory.Options();
             o.inScaled = false;
             art = BitmapFactory.decodeResource(c.getResources(), res, o);
-            dim.setColor(Color.argb(150, 10, 6, 24));
+            // Cheap blur for the side bars: downscale twice, draw upscaled with filtering.
+            Bitmap tiny = Bitmap.createScaledBitmap(art, art.getWidth() / 12, art.getHeight() / 12, true);
+            blurred = Bitmap.createScaledBitmap(tiny, tiny.getWidth() / 3, tiny.getHeight() / 3, true);
+            dim.setColor(Color.argb(120, 10, 6, 24));
         }
 
         @Override
@@ -153,12 +156,13 @@ public class LauncherActivity extends Activity {
             ox = (w - aw * scale) / 2f; oy = (h - ah * scale) / 2f;
             fit.reset(); fit.postScale(scale, scale); fit.postTranslate(ox, oy);
             float cs = Math.max(w / aw, h / ah);
-            cover.reset(); cover.postScale(cs, cs); cover.postTranslate((w - aw * cs) / 2f, (h - ah * cs) / 2f);
+            float bs = cs * aw / blurred.getWidth();
+            cover.reset(); cover.postScale(bs, bs); cover.postTranslate((w - aw * cs) / 2f, (h - ah * cs) / 2f);
         }
 
         void drawArt(Canvas c) {
             c.drawColor(Color.rgb(20, 14, 40));
-            c.drawBitmap(art, cover, bmpPaint);
+            c.drawBitmap(blurred, cover, bmpPaint);
             c.drawRect(0, 0, getWidth(), getHeight(), dim);
             c.drawBitmap(art, fit, bmpPaint);
         }

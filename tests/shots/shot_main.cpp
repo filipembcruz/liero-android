@@ -88,10 +88,11 @@ int main(int argc, char** argv)
 	// 1) Weapon selection (original Liero screen), autostarted from the launcher.
 	at(f, [](SDL_Renderer* r) { shot(r, "01_weapon_select"); });
 	// Navigate to "Done" with the stick (down x6) and confirm with FIRE.
+	// These are *instant flicks* (down+move+up delivered in the same frame):
+	// the input layer must still hold each press for one game frame.
 	for (int i = 0; i < 6; ++i)
 	{
-		at(f + 10 + i * 12, [](SDL_Renderer*) { stick(1, 0, 0.9f, true); });
-		at(f + 16 + i * 12, [](SDL_Renderer*) { stick(1, 0, 0.9f, false); });
+		at(f + 10 + i * 12, [](SDL_Renderer*) { stick(1, 0, 0.9f, true); stick(1, 0, 0.9f, false); });
 	}
 	f += 10 + 6 * 12 + 10;
 	at(f, [](SDL_Renderer*) { pressButton(mobile::VFire, 2, true); });

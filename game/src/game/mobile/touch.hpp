@@ -101,6 +101,8 @@ private:
 	// resulting desired state of each virtual input + what was sent
 	bool want[VCount] = {};
 	bool sentDos[256] = {};
+	uint32_t pressedAt[256] = {}; // frame a key went down (min. hold = 1 game frame)
+	uint32_t frameNo = 1;
 	int swapPhase = 0;   // 0 idle, >0 frames into the pulse sequence
 	bool swapQueued = false;
 	bool lastSwap = false;

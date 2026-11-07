@@ -28,6 +28,7 @@
 #include "game/sobject.hpp"
 #include "game/bobject.hpp"
 #include "game/bonus.hpp"
+#include "game/math.hpp"
 
 #include <cstdio>
 #include <cstdlib>
@@ -184,6 +185,7 @@ int main(int argc, char** argv)
 			tcDir = tcDir.substr(slash + 1);
 		}
 	}
+	precomputeTables(); // sin/cos tables, exactly as gameEntry() does
 	gvl::shared_ptr<Common> common(new Common());
 	common->load(FsNode(tcDir));
 
@@ -208,6 +210,11 @@ int main(int argc, char** argv)
 		worm->health = worm->settings->health;
 		worm->index = i;
 		worm->statsX = i ? 218 : 0;
+		// Upstream leaves reacts[] uninitialised and the CPU AI reads it
+		// before the first physics tick: zero it for both builds (the port
+		// does this in the Worm constructor) so traces are deterministic.
+		for (int k = 0; k < 4; ++k)
+			worm->reacts[k] = 0;
 		if (worm->settings->controller == 1)
 			worm->ai = gvl::shared_ptr<WormAI>(new DumbLieroAI());
 		game.addWorm(worm);
@@ -244,6 +251,7 @@ int main(int argc, char** argv)
 	Rand inputRand;
 	inputRand.seed(seed + 777);
 	bool held[7] = {};
+	int ropeOutFrames = 0, ropeAttachedFrames = 0, weaponChanges = 0, lastWeapon = 0, maxObjects = 0;
 
 	for (int f = 0; f < frames; ++f)
 	{
@@ -272,6 +280,14 @@ int main(int argc, char** argv)
 				worm.ai->process(game, worm);
 		}
 		game.processFrame();
+		{
+			Worm& w0 = *game.worms[0];
+			ropeOutFrames += w0.ninjarope.out;
+			ropeAttachedFrames += w0.ninjarope.attached;
+			if (w0.currentWeapon != lastWeapon) { ++weaponChanges; lastWeapon = w0.currentWeapon; }
+			int objs = (int)(game.wobjects.size() + game.nobjects.size() + game.sobjects.size());
+			if (objs > maxObjects) maxObjects = objs;
+		}
 
 		std::fprintf(trace, "%d %016llx", f, (unsigned long long)stateHash(game));
 		if (f % 35 == 0 || f == frames - 1)
@@ -290,8 +306,9 @@ int main(int argc, char** argv)
 			break;
 		}
 	}
-	std::fprintf(trace, "end k0=%d k1=%d l0=%d l1=%d\n",
-		game.worms[0]->kills, game.worms[1]->kills, game.worms[0]->lives, game.worms[1]->lives);
+	std::fprintf(trace, "end k0=%d k1=%d l0=%d l1=%d rope=%d attached=%d wchg=%d maxobj=%d\n",
+		game.worms[0]->kills, game.worms[1]->kills, game.worms[0]->lives, game.worms[1]->lives,
+		ropeOutFrames, ropeAttachedFrames, weaponChanges, maxObjects);
 	std::fclose(trace);
 	return 0;
 }
