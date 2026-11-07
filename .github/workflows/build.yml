@@ -92,7 +92,7 @@ jobs:
       - name: Capture
         run: |
           for res in 3120x1440 2340x1080 1920x1080; do
-            rm -rf data && mkdir -p data/TC shots/$res && cp -r game/TC/openliero data/TC/
+            rm -rf data && mkdir -p data/TC shots/$res && cp -r game/TC/openliero data/TC/ && cp -r game/ui data/
             LIERO_TEST_WINDOW=$res SDL_VIDEODRIVER=offscreen SDL_AUDIODRIVER=dummy \
               timeout 300 build-shots/liero_shots $PWD/data $PWD/shots/$res
           done

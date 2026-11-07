@@ -19,17 +19,11 @@ public class GameActivity extends SDLActivity {
 
     @Override
     protected String[] getArguments() {
-        Prefs p = new Prefs(this);
+        // Everything else (name, difficulty, controls, view...) is read by the
+        // game from mobile.cfg in the data dir.
         ArrayList<String> a = new ArrayList<>();
         a.add("--data-dir"); a.add(AssetInstaller.dataDir(this).getAbsolutePath());
         if (getIntent().getBooleanExtra("autostart", true)) a.add("--autostart");
-        a.add("--difficulty"); a.add(String.valueOf(p.difficulty()));
-        a.add("--name"); a.add(p.name());
-        a.add("--lives"); a.add(String.valueOf(p.lives()));
-        a.add("--new-map"); a.add(p.newMap() ? "1" : "0");
-        a.add("--touch-scale"); a.add(String.valueOf(p.touchScale() / 100f));
-        a.add("--touch-opacity"); a.add(String.valueOf(p.touchOpacity() / 100f));
-        a.add("--touch-lefty"); a.add(p.lefty() ? "1" : "0");
         return a.toArray(new String[0]);
     }
 

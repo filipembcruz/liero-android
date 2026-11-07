@@ -93,6 +93,8 @@ void Viewport::draw(Game& game, Renderer& renderer, GameState state, bool isRepl
 	int multiplier = renderer.renderResX / 320;
 	int centerX = renderer.renderResX / 2;
 
+	if (hud)
+	{
 	if(worm.visible)
 	{
 		int lifebarWidth = worm.health * 100 / worm.settings->health;
@@ -196,6 +198,8 @@ void Viewport::draw(Game& game, Renderer& renderer, GameState state, bool isRepl
 	}
 	break;
 	}
+
+	} // hud
 
 	gvl::ivec2 renderPos(x, y);
 
@@ -625,7 +629,7 @@ void Viewport::draw(Game& game, Renderer& renderer, GameState state, bool isRepl
 		}
 	}
 
-	if(game.settings->map)
+	if(hud && game.settings->map)
 	{
 		int mapX = centerX - 26;
 		int mapY = renderer.renderResY - 38;

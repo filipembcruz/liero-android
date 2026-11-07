@@ -2,6 +2,11 @@
 #ifdef LIERO_MOBILE
 #include "mobile/touch.hpp"
 #include "mobile/platform.hpp"
+#include "mobile/view.hpp"
+#include "mobile/ui.hpp"
+#include "mobile/menu.hpp"
+#include "mobile/config.hpp"
+#include "controller/localController.hpp"
 #else
 #include <SDL_image.h>
 #endif
@@ -498,6 +503,9 @@ void Gfx::onWindowResize(Uint32 windowID)
 			(void)texW; (void)texH;
 			mobileGameRect = gr;
 			mobile::input.layout(w, h, gr);
+			if (!mobile::ui::ready())
+				mobile::ui::init(sdlRenderer, "ui/font.bin");
+			mobile::view.setup(sdlRenderer, w, h);
 		}
 #else
 		// linear for that old-school chunky look, but consider adding a user
@@ -963,7 +971,10 @@ void Gfx::draw(SDL_Surface& surface, SDL_Texture& texture, SDL_Renderer& sdlRend
 	SDL_SetRenderDrawColor(&sdlRenderer, 0, 0, 0, 255);
 	SDL_RenderClear(&sdlRenderer);
 #ifdef LIERO_MOBILE
-	SDL_RenderCopy(&sdlRenderer, &texture, NULL, &mobileGameRect);
+	if (mobile::view.active && mobile::view.game)
+		mobile::view.present(&sdlRenderer, *mobile::view.game);
+	else
+		SDL_RenderCopy(&sdlRenderer, &texture, NULL, &mobileGameRect);
 	mobile::input.draw(&sdlRenderer);
 	if (mobileFrameHook)
 		mobileFrameHook(&sdlRenderer);
@@ -1941,6 +1952,7 @@ restart:
 
 #ifdef LIERO_MOBILE
 		mobile::input.setMode(mobile::Mode::Menu);
+		mobile::view.active = false;
 		int selection;
 		if (mobile::options.autostart)
 		{
@@ -1948,7 +1960,15 @@ restart:
 			selection = MainMenu::MaNewGame;
 		}
 		else
-			selection = menuLoop();
+		{
+			mobile::input.releaseAll(nullptr);
+			mobile::MenuResult mr = mobile::pauseMenu(controller->currentGame(), controller->running(), mobile::lastResult);
+			if (mr == mobile::MenuResume) selection = MainMenu::MaResumeGame;
+			else if (mr == mobile::MenuNewGame) selection = MainMenu::MaNewGame;
+			else if (mr == mobile::MenuQuit) selection = MainMenu::MaQuit;
+			else selection = menuLoop();
+			clearKeys();
+		}
 #else
 		int selection = menuLoop();
 #endif
@@ -1999,8 +2019,19 @@ restart:
 			goto restart;
 		}
 
+#ifdef LIERO_MOBILE
+		if (selection == MainMenu::MaNewGame)
+		{
+			mobile::weaponsPreselected = false;
+			mobile::lastResult = 0;
+			if (!mobile::weaponPicker(*controller->currentGame()))
+				continue; // back out to the menu
+			clearKeys();
+		}
+#endif
 		controller->focus();
 #ifdef LIERO_MOBILE
+		mobile::weaponsPreselected = false;
 		mobile::input.setMode(mobile::Mode::Game);
 		bool resultRecorded = false;
 #endif
@@ -2025,6 +2056,15 @@ restart:
 
 			++gfx.menuCycles;
 
+#ifdef LIERO_MOBILE
+			{
+				LocalController* lc = dynamic_cast<LocalController*>(controller.get());
+				bool show = lc && (lc->state == StateGame || lc->state == StateGameEnded);
+				mobile::view.active = show;
+				if (show)
+					mobile::view.update(lc->game);
+			}
+#endif
 			flip();
 			process(controller.get());
 		}

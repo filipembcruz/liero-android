@@ -202,7 +202,9 @@ bool LocalController::process()
 				endRecord();
 				game.statsRecorder->finish(game);
 				// TODO: Get rid of cast.
+#ifndef LIERO_MOBILE
 				presentStats(static_cast<NormalStatsRecorder&>(*game.statsRecorder), game);
+#endif
 			}
 			return false;
 		}

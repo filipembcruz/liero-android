@@ -9,6 +9,7 @@
 
 #include <SDL.h>
 #include <cstdint>
+#include <deque>
 
 struct Controller;
 
@@ -18,10 +19,13 @@ enum class Mode { Menu, Game };
 
 struct TouchConfig
 {
-	float scale = 1.0f;     // button size multiplier (0.6 .. 1.6)
-	float opacity = 0.55f;  // 0.15 .. 1.0
+	float scale = 1.0f;      // button size multiplier
+	float opacity = 0.6f;    // 0.1 .. 1.0
 	bool leftHanded = false; // mirror layout (buttons left, stick right)
-	bool visible = true;     // hide when a gamepad is in use
+	bool visible = true;     // hidden while a gamepad is in use
+	float deadZone = 0.22f;  // fraction of stick radius
+	bool vibrate = true;
+	bool digButton = true;
 };
 
 // Logical virtual inputs (merged from touch + gamepad).
@@ -31,6 +35,7 @@ enum VIn
 	VFire, VJump, VChange, VRope,
 	VSwapTap,     // tap = next weapon (Change held + Right pulse)
 	VEnter, VEscape,
+	VDig,         // Left+Right together (original "dig")
 	VCount
 };
 
@@ -38,6 +43,7 @@ struct Input
 {
 	void init(TouchConfig const& cfg);
 	void layout(int winW, int winH, SDL_Rect const& gameRect);
+	void relayout() { layout(w_, h_, game_); }
 	void setMode(Mode m);
 	Mode mode() const { return mode_; }
 
@@ -47,6 +53,13 @@ struct Input
 	void update(Controller* controller);
 	void draw(SDL_Renderer* r);
 	void releaseAll(Controller* controller);
+
+	// Switch to weapon slot `target` (0..4) from `current` via the original
+	// Change + Left/Right key sequence.
+	void selectWeapon(int current, int target);
+
+	// Horizontal free space between the stick and the action buttons (for the HUD).
+	void hudBounds(float& left, float& right) const;
 
 	TouchConfig cfg;
 
@@ -76,6 +89,7 @@ private:
 	void applyKey(uint32_t dosKey, bool down, Controller* controller);
 	void sync(Controller* controller);
 	uint32_t wormKey(int control) const;
+	void buzz();
 
 	Mode mode_ = Mode::Menu;
 	int w_ = 0, h_ = 0;
@@ -95,7 +109,6 @@ private:
 	// gamepad state
 	bool padBtn[VCount] = {};
 	bool padDir[4] = {};
-	int16_t axisX = 0, axisY = 0;
 	bool usingPad = false;
 
 	// resulting desired state of each virtual input + what was sent
@@ -103,9 +116,14 @@ private:
 	bool sentDos[256] = {};
 	uint32_t pressedAt[256] = {}; // frame a key went down (min. hold = 1 game frame)
 	uint32_t frameNo = 1;
-	int swapPhase = 0;   // 0 idle, >0 frames into the pulse sequence
-	bool swapQueued = false;
+
+	// Scripted key sequence (weapon change). Bits: 1 = Change, 2 = Right, 4 = Left.
+	std::deque<uint8_t> seq;
+	uint8_t seqNow = 0;
 	bool lastSwap = false;
+
+	SDL_Haptic* haptic = nullptr;
+	bool hapticTried = false;
 };
 
 extern Input input;

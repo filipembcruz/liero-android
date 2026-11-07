@@ -56,9 +56,17 @@ adb shell input keyevent KEYCODE_BACK; sleep 1
 read X Y < <(art 836 433); adb shell input tap $X $Y
 for i in $(seq 1 30); do sleep 1; [ -n "$(gamepid)" ] && break; done
 sleep 6
-shot 06_weapon_select
+shot 06_weapon_picker
 PID1=$(gamepid)
 echo "game pid: $PID1"
+calc() { python3 -c "W=$W;H=$H;s=H/720.0;$1"; }
+
+# Native weapon picker: ALEATÓRIO, then JOGAR
+read GX GY < <(calc "sw=min(200*s,(W-620*s)/5); bx=30*s+sw*5+16*s+24*s; bw=W-bx-30*s; print(int(bx+bw/2), int(H-176*s+115*s))")
+adb shell input tap $GX $((GY - 76 * H / 720)); sleep 1.5; shot 07_weapon_picker_random
+adb shell input tap $GX $GY
+sleep 5
+shot 08_match_hud
 
 layout() { adb logcat -d -s SDL/APP:I | grep 'liero-layout mode=1' | tail -1; }
 L=$(layout); echo "$L"
@@ -66,43 +74,40 @@ val() { echo "$L" | sed -n "s/.* $1=\([0-9-]*\),\([0-9-]*\).*/\1 \2/p"; }
 read SX SY < <(val stick)
 SR=$(echo "$L" | sed -n 's/.* stick=[0-9]*,[0-9]*,\([0-9]*\).*/\1/p')
 read FX FY < <(val b4)   # VFire
-read JX JY < <(val b5)   # VJump
 read RX RY < <(val b7)   # VRope
 read WX WY < <(val b8)   # VSwapTap
-read PX PY < <(val pause)
-echo "stick=$SX,$SY r=$SR fire=$FX,$FY rope=$RX,$RY swap=$WX,$WY pause=$PX,$PY"
-
-# Weapon menu: stick down x6 to DONE, then FIRE
-for i in 1 2 3 4 5 6; do adb shell input swipe $SX $SY $SX $((SY + SR / 2)) 120; sleep 0.3; done
-adb shell input tap $FX $FY
-sleep 3
-shot 07_match
+echo "stick=$SX,$SY r=$SR fire=$FX,$FY rope=$RX,$RY swap=$WX,$WY"
 
 # Hold fire while walking (two concurrent long-presses)
 adb shell input swipe $SX $SY $((SX + SR / 2)) $SY 2500 &
 adb shell input swipe $FX $FY $FX $FY 2000 &
-sleep 1.2; shot 08_firing; wait
+sleep 1.2; shot 09_firing; wait
 
-adb shell input tap $WX $WY; sleep 0.4; shot 09_weapon_swap
+adb shell input tap $WX $WY; sleep 0.6; shot 10_weapon_swap
 sleep 1
 adb shell input swipe $SX $SY $SX $((SY - SR / 2)) 1500 &
 sleep 0.5
 adb shell input swipe $RX $RY $RX $RY 1500 &
-sleep 1.0; shot 10_ninja_rope; wait
+sleep 1.0; shot 11_ninja_rope; wait
 
-# Pause button
-adb shell input tap $PX $PY; sleep 2; shot 11_pause_menu
-# Android Back must NOT close the game
+# HUD pause button (next to the minimap) -> native pause menu
+read PX PY < <(calc "mpx=W-270*s-16*s-6*s; print(int(mpx-70*s+29*s), int(43*s))")
+adb shell input tap $PX $PY; sleep 2.5; shot 12_pause_menu
+# Settings (3rd button)
+read MX MY < <(calc "ph=520*s; py=(H-ph)/2; print(int(W/2), int(py+136*s+2*80*s+33*s))")
+adb shell input tap $MX $MY; sleep 1.5; shot 13_settings
 adb shell input keyevent KEYCODE_BACK; sleep 1.5
-adb shell input keyevent KEYCODE_BACK; sleep 1.5
-shot 12_after_back
+# Android Back in the pause menu = resume; Back again in game = pause (never quits)
+adb shell input keyevent KEYCODE_BACK; sleep 2
+adb shell input keyevent KEYCODE_BACK; sleep 2.5
+shot 14_after_back
 PID2=$(gamepid)
 
 # Background / foreground keeps state
 adb shell input keyevent KEYCODE_HOME; sleep 2
 adb shell monkey -p $PKG -c android.intent.category.LAUNCHER 1 >/dev/null 2>&1   # like tapping the icon
 sleep 3
-shot 13_after_home
+shot 15_after_home
 PID3=$(gamepid)
 
 adb logcat -d > "$OUT/logcat.txt"

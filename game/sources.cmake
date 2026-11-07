@@ -22,6 +22,7 @@ set(LIERO_UI_SOURCES
   game/menu/integerBehavior.cpp game/menu/itemBehavior.cpp
   game/menu/mainMenu.cpp game/menu/menu.cpp game/menu/menuItem.cpp
   game/menu/timeBehavior.cpp
-  game/mobile/touch.cpp game/mobile/platform.cpp)
+  game/mobile/touch.cpp game/mobile/platform.cpp game/mobile/ui.cpp
+  game/mobile/view.cpp game/mobile/menu.cpp game/mobile/config.cpp)
 set(LIERO_MOBILE_SOURCES ${LIERO_CORE_SOURCES} ${LIERO_UI_SOURCES})
 list(TRANSFORM LIERO_MOBILE_SOURCES PREPEND "${LIERO_SRC}/")

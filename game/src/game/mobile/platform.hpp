@@ -12,17 +12,16 @@ namespace mobile {
 
 struct Options
 {
-	bool autostart = false;  // skip Liero's main menu and go straight to a match
-	int difficulty = 1;      // 0 easy (original Liero CPU), 1 medium, 2 hard (predictive AI)
-	std::string name;        // player 1 name ("" = keep)
-	int lives = -1;          // -1 = keep
-	int newMap = -1;         // 1 = new random map every game, 0 = keep, -1 = keep setting
+	bool autostart = false;  // go straight to the weapon picker / match
 	std::string dataDir;     // where the launcher installed TC/ (cwd is set here)
 };
 
 extern Options options;
+extern char lastResult; // result of the last finished match (W/L/D)
 
 void parseArgs(int argc, char** argv);
+// Loads mobile.cfg (after chdir to the data dir) and configures input.
+void initFromConfig();
 // Applies launcher choices on top of the loaded/created liero.cfg.
 void applySettings(Settings& s, bool freshSettings);
 // Platform events (touch, gamepad, back button, lifecycle). Returns true if

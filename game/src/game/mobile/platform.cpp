@@ -1,5 +1,6 @@
 #include "platform.hpp"
 #include "touch.hpp"
+#include "config.hpp"
 
 #include "../gfx.hpp"
 #include "../game.hpp"
@@ -15,29 +16,29 @@
 namespace mobile {
 
 Options options;
+char lastResult = 0;
 
 void parseArgs(int argc, char** argv)
 {
-	TouchConfig tc;
 	for (int i = 1; i < argc; ++i)
 	{
 		std::string a = argv[i];
 		auto next = [&]() -> std::string { return i + 1 < argc ? std::string(argv[++i]) : std::string(); };
 		if (a == "--autostart") options.autostart = true;
-		else if (a == "--difficulty") options.difficulty = std::atoi(next().c_str());
-		else if (a == "--name") options.name = next();
-		else if (a == "--lives") options.lives = std::atoi(next().c_str());
-		else if (a == "--new-map") options.newMap = std::atoi(next().c_str());
 		else if (a == "--data-dir") options.dataDir = next();
-		else if (a == "--touch-scale") tc.scale = (float)std::atof(next().c_str());
-		else if (a == "--touch-opacity") tc.opacity = (float)std::atof(next().c_str());
-		else if (a == "--touch-lefty") tc.leftHanded = std::atoi(next().c_str()) != 0;
-		else if (a == "--touch-hidden") tc.visible = std::atoi(next().c_str()) == 0;
 	}
-	if (tc.scale < 0.5f) tc.scale = 0.5f;
-	if (tc.scale > 1.8f) tc.scale = 1.8f;
-	if (tc.opacity < 0.1f) tc.opacity = 0.1f;
-	if (tc.opacity > 1.0f) tc.opacity = 1.0f;
+}
+
+void initFromConfig()
+{
+	loadConfig();
+	TouchConfig tc;
+	tc.scale = config.touchScale / 100.0f;
+	tc.opacity = config.touchOpacity / 100.0f;
+	tc.leftHanded = config.lefty != 0;
+	tc.deadZone = config.deadZone / 100.0f;
+	tc.vibrate = config.vibrate != 0;
+	tc.digButton = config.digButton != 0;
 	input.init(tc);
 }
 
@@ -45,42 +46,17 @@ void applySettings(Settings& s, bool freshSettings)
 {
 	if (freshSettings)
 	{
-		// Phone-friendly defaults, only on first run (user can change them in
-		// Liero's own settings menu afterwards).
+		// Phone-friendly defaults, only on first run.
 		s.recordReplays = false;
 	}
 	s.fullscreen = true;
-	// Single player: the CPU's weapon menu can't be driven from a phone, so
-	// bots get RANDOM weapons (an original OpenLiero option) unless the user
-	// picked KEEP in the advanced menu.
-	if (s.selectBotWeapons == 1)
-		s.selectBotWeapons = 0;
 	s.spectatorWindow = false;
 	s.singleScreenReplay = false;
-
-	s.wormSettings[0]->controller = 0; // human
-	switch (options.difficulty)
-	{
-	case 0: // Easy: the original Liero 1.33 CPU
-		s.wormSettings[1]->controller = 1;
-		break;
-	case 2: // Hard: OpenLiero predictive AI, full search
-		s.wormSettings[1]->controller = 2;
-		s.aiFrames = 70 * 2;
-		s.aiMutations = 2;
-		break;
-	default: // Medium: predictive AI with a shorter look-ahead
-		s.wormSettings[1]->controller = 2;
-		s.aiFrames = 35;
-		s.aiMutations = 1;
-		break;
-	}
-	if (!options.name.empty())
-		s.wormSettings[0]->name = options.name.substr(0, 20);
-	if (options.lives > 0)
-		s.lives = options.lives;
-	if (options.newMap >= 0)
-		s.regenerateLevel = options.newMap != 0;
+	// Single player: the CPU's weapon menu can't be driven from a phone, so
+	// bots get RANDOM weapons (an original OpenLiero option).
+	if (s.selectBotWeapons == 1)
+		s.selectBotWeapons = 0;
+	applyConfigToSettings(s);
 }
 
 void saveNow()
@@ -108,10 +84,11 @@ void recordResult(Game& game)
 	Worm& cpu = *game.worms[1];
 	bool won = me.lives > cpu.lives || (me.lives == cpu.lives && me.kills > cpu.kills);
 	bool draw = me.lives == cpu.lives && me.kills == cpu.kills;
+	lastResult = draw ? 'D' : (won ? 'W' : 'L');
 	FILE* f = std::fopen("results.txt", "a");
 	if (f)
 	{
-		std::fprintf(f, "%c %d %d %d\n", draw ? 'D' : (won ? 'W' : 'L'), me.kills, cpu.kills, options.difficulty);
+		std::fprintf(f, "%c %d %d %d\n", draw ? 'D' : (won ? 'W' : 'L'), me.kills, cpu.kills, config.difficulty);
 		std::fclose(f);
 	}
 }

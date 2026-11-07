@@ -10,6 +10,9 @@
 #include "viewport.hpp"
 #include "filesystem.hpp"
 #include "gfx/renderer.hpp"
+#ifdef LIERO_MOBILE
+#include "mobile/menu.hpp"
+#endif
 
 WeaponSelection::WeaponSelection(Game& game)
 : game(game)
@@ -88,6 +91,11 @@ WeaponSelection::WeaponSelection(Game& game)
 
 		menus[i].moveToFirstVisible();
 		isReady[i] = (ws.controller != 0 && game.settings->selectBotWeapons != 1);
+#ifdef LIERO_MOBILE
+		// Weapons were already picked in the native HD picker.
+		if (ws.controller == 0 && mobile::weaponsPreselected)
+			isReady[i] = true;
+#endif
 	}
 }
 

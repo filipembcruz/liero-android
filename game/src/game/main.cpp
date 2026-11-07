@@ -98,6 +98,7 @@ try
 		if (chdir(mobile::options.dataDir.c_str()) != 0)
 			SDL_Log("liero: chdir(%s) failed", mobile::options.dataDir.c_str());
 	}
+	mobile::initFromConfig();
 	SDL_SetHint(SDL_HINT_ANDROID_TRAP_BACK_BUTTON, "1");
 	SDL_SetHint(SDL_HINT_ACCELEROMETER_AS_JOYSTICK, "0");
 	SDL_SetHint(SDL_HINT_TOUCH_MOUSE_EVENTS, "0");

@@ -38,6 +38,7 @@ struct Viewport
 	int bannerY;
 	gvl::rect rect;
 	Rand rand;
+	bool hud = true; // mobile: false = draw only the world (HD HUD is drawn natively)
 
 
 	void setCenter(int x, int y)

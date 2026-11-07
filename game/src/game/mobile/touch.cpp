@@ -1,8 +1,11 @@
 #include "touch.hpp"
+#include "ui.hpp"
+#include "view.hpp"
 
 #include "../gfx.hpp"
 #include "../keys.hpp"
 #include "../worm.hpp"
+#include "../game.hpp"
 #include "../settings.hpp"
 #include "../controller/controller.hpp"
 
@@ -16,135 +19,8 @@ namespace mobile {
 Input input;
 
 namespace {
-
-enum Icon { IconNone, IconFire, IconJump, IconRope, IconSwap, IconOk, IconBack, IconPause };
-
 const float Pi = 3.14159265f;
-
-void fillCircle(SDL_Renderer* r, float cx, float cy, float rad, SDL_Color c)
-{
-	const int seg = 40;
-	SDL_Vertex v[seg + 2];
-	v[0].position = { cx, cy };
-	v[0].color = c;
-	for (int i = 0; i <= seg; ++i)
-	{
-		float a = (float)i / seg * 2 * Pi;
-		v[i + 1].position = { cx + std::cos(a) * rad, cy + std::sin(a) * rad };
-		v[i + 1].color = c;
-	}
-	int idx[seg * 3];
-	for (int i = 0; i < seg; ++i)
-	{
-		idx[i * 3] = 0;
-		idx[i * 3 + 1] = i + 1;
-		idx[i * 3 + 2] = i + 2;
-	}
-	SDL_RenderGeometry(r, NULL, v, seg + 2, idx, seg * 3);
 }
-
-void ring(SDL_Renderer* r, float cx, float cy, float rad, float thick, SDL_Color c)
-{
-	const int seg = 48;
-	std::vector<SDL_Vertex> v;
-	std::vector<int> idx;
-	for (int i = 0; i <= seg; ++i)
-	{
-		float a = (float)i / seg * 2 * Pi;
-		float ca = std::cos(a), sa = std::sin(a);
-		SDL_Vertex o, in;
-		o.position = { cx + ca * rad, cy + sa * rad };
-		in.position = { cx + ca * (rad - thick), cy + sa * (rad - thick) };
-		o.color = in.color = c;
-		o.tex_coord = in.tex_coord = { 0, 0 };
-		v.push_back(o);
-		v.push_back(in);
-		if (i < seg)
-		{
-			int b = i * 2;
-			idx.insert(idx.end(), { b, b + 1, b + 2, b + 1, b + 3, b + 2 });
-		}
-	}
-	SDL_RenderGeometry(r, NULL, v.data(), (int)v.size(), idx.data(), (int)idx.size());
-}
-
-void tri(SDL_Renderer* r, SDL_FPoint a, SDL_FPoint b, SDL_FPoint c, SDL_Color col)
-{
-	SDL_Vertex v[3];
-	v[0].position = a; v[1].position = b; v[2].position = c;
-	for (auto& x : v) { x.color = col; x.tex_coord = { 0, 0 }; }
-	SDL_RenderGeometry(r, NULL, v, 3, NULL, 0);
-}
-
-void thickLine(SDL_Renderer* r, float x0, float y0, float x1, float y1, float t, SDL_Color c)
-{
-	float dx = x1 - x0, dy = y1 - y0;
-	float len = std::sqrt(dx * dx + dy * dy);
-	if (len < 0.001f) return;
-	float nx = -dy / len * t * 0.5f, ny = dx / len * t * 0.5f;
-	SDL_FPoint p0 = { x0 + nx, y0 + ny }, p1 = { x0 - nx, y0 - ny };
-	SDL_FPoint p2 = { x1 - nx, y1 - ny }, p3 = { x1 + nx, y1 + ny };
-	tri(r, p0, p1, p2, c);
-	tri(r, p0, p2, p3, c);
-}
-
-void drawIcon(SDL_Renderer* r, int icon, float x, float y, float s, SDL_Color c)
-{
-	float t = std::max(2.0f, s * 0.16f);
-	switch (icon)
-	{
-	case IconFire: // starburst
-		for (int i = 0; i < 8; ++i)
-		{
-			float a = i * Pi / 4;
-			float ri = (i % 2) ? s * 0.25f : s * 0.15f;
-			float ro = (i % 2) ? s * 0.55f : s * 0.75f;
-			thickLine(r, x + std::cos(a) * ri, y + std::sin(a) * ri, x + std::cos(a) * ro, y + std::sin(a) * ro, t, c);
-		}
-		fillCircle(r, x, y, s * 0.22f, c);
-		break;
-	case IconJump: // double chevron up
-		for (int k = 0; k < 2; ++k)
-		{
-			float yy = y + s * 0.25f - k * s * 0.42f;
-			thickLine(r, x - s * 0.5f, yy + s * 0.25f, x, yy - s * 0.2f, t * 1.2f, c);
-			thickLine(r, x, yy - s * 0.2f, x + s * 0.5f, yy + s * 0.25f, t * 1.2f, c);
-		}
-		break;
-	case IconRope: // hook + line
-		thickLine(r, x - s * 0.55f, y + s * 0.55f, x + s * 0.2f, y - s * 0.2f, t, c);
-		ring(r, x + s * 0.25f, y - s * 0.25f, s * 0.35f, t, c);
-		break;
-	case IconSwap: // two arrows in a circle
-		ring(r, x, y, s * 0.55f, t, c);
-		tri(r, { x + s * 0.55f - s * 0.25f, y - s * 0.05f }, { x + s * 0.55f + s * 0.25f, y - s * 0.05f }, { x + s * 0.55f, y + s * 0.3f }, c);
-		tri(r, { x - s * 0.55f - s * 0.25f, y + s * 0.05f }, { x - s * 0.55f + s * 0.25f, y + s * 0.05f }, { x - s * 0.55f, y - s * 0.3f }, c);
-		break;
-	case IconOk: // check mark
-		thickLine(r, x - s * 0.5f, y, x - s * 0.12f, y + s * 0.4f, t * 1.3f, c);
-		thickLine(r, x - s * 0.12f, y + s * 0.4f, x + s * 0.55f, y - s * 0.4f, t * 1.3f, c);
-		break;
-	case IconBack: // left arrow
-		thickLine(r, x - s * 0.5f, y, x + s * 0.5f, y, t * 1.3f, c);
-		thickLine(r, x - s * 0.5f, y, x - s * 0.1f, y - s * 0.4f, t * 1.3f, c);
-		thickLine(r, x - s * 0.5f, y, x - s * 0.1f, y + s * 0.4f, t * 1.3f, c);
-		break;
-	case IconPause:
-		thickLine(r, x - s * 0.25f, y - s * 0.45f, x - s * 0.25f, y + s * 0.45f, t * 1.5f, c);
-		thickLine(r, x + s * 0.25f, y - s * 0.45f, x + s * 0.25f, y + s * 0.45f, t * 1.5f, c);
-		break;
-	}
-}
-
-SDL_Color rgba(int r, int g, int b, float a)
-{
-	SDL_Color c;
-	c.r = (Uint8)r; c.g = (Uint8)g; c.b = (Uint8)b;
-	c.a = (Uint8)std::max(0.0f, std::min(255.0f, a * 255.0f));
-	return c;
-}
-
-} // anon
 
 void Input::init(TouchConfig const& c)
 {
@@ -153,7 +29,6 @@ void Input::init(TouchConfig const& c)
 
 uint32_t Input::wormKey(int control) const
 {
-	// Player 1's configured keys (the same ones the PC version uses).
 	if (!gfx.settings)
 		return 0;
 	WormSettings& ws = *gfx.settings->wormSettings[0];
@@ -166,6 +41,23 @@ uint32_t Input::wormKey(int control) const
 	return k;
 }
 
+void Input::buzz()
+{
+	if (!cfg.vibrate)
+		return;
+	if (!hapticTried)
+	{
+		hapticTried = true;
+		if (SDL_InitSubSystem(SDL_INIT_HAPTIC) == 0 && SDL_NumHaptics() > 0)
+		{
+			haptic = SDL_HapticOpen(0);
+			if (haptic && SDL_HapticRumbleInit(haptic) != 0) { SDL_HapticClose(haptic); haptic = nullptr; }
+		}
+	}
+	if (haptic)
+		SDL_HapticRumblePlay(haptic, 0.35f, 12);
+}
+
 void Input::setMode(Mode m)
 {
 	if (m == mode_)
@@ -176,7 +68,7 @@ void Input::setMode(Mode m)
 	for (int i = 0; i < VCount; ++i)
 		want[i] = false;
 	pauseBtn.down = false; pauseBtn.finger = -1;
-	swapPhase = 0; swapQueued = false;
+	seq.clear(); seqNow = 0;
 	layout(w_, h_, game_);
 }
 
@@ -186,14 +78,14 @@ void Input::layout(int winW, int winH, SDL_Rect const& gameRect)
 	if (w_ <= 0 || h_ <= 0)
 		return;
 
-	float u = std::min(h_ / 6.2f, w_ / 11.0f) * cfg.scale; // base button diameter
+	float u = std::min(h_ / 6.2f, w_ / 11.0f) * cfg.scale; // base size unit
+	float s = h_ / 720.0f;
 	bool L = cfg.leftHanded;
 	auto X = [&](float fromLeft) { return L ? w_ - fromLeft : fromLeft; };
-	auto XR = [&](float fromRight) { return L ? fromRight : w_ - fromRight; };
 
 	stickR = u * 1.15f;
-	stickX = X(std::max(stickR * 1.25f, game_.x * 0.5f));
-	stickY = h_ - stickR * 1.35f;
+	stickX = X(stickR * 1.25f);
+	stickY = h_ - stickR * 1.3f;
 
 	buttonCount = 0;
 	auto add = [&](float x, float y, float r, VIn in, int icon, int cr, int cg, int cb) {
@@ -203,37 +95,65 @@ void Input::layout(int winW, int winH, SDL_Rect const& gameRect)
 		b.down = false; b.finger = -1;
 	};
 
-	float side = std::max(u * 1.5f, (float)game_.x * 0.5f);
+	float m = 0.28f * u;
+	float fr = (mode_ == Mode::Game) ? 0.85f * u : 0.75f * u;
+	float fx = X(w_ - m - fr), fy = h_ - m - fr;
 	if (mode_ == Mode::Game)
 	{
-		add(XR(side), h_ - u * 1.45f, u * 0.78f, VFire, IconFire, 235, 70, 80);
-		add(XR(side + u * 1.65f), h_ - u * 0.85f, u * 0.56f, VJump, IconJump, 60, 140, 245);
-		add(XR(side - u * 0.15f), h_ - u * 3.05f, u * 0.56f, VRope, IconRope, 170, 90, 230);
-		add(XR(side + u * 1.55f), h_ - u * 2.5f, u * 0.5f, VSwapTap, IconSwap, 245, 185, 40);
+		add(fx, fy, fr, VFire, ui::IRocket, 240, 70, 80);
+		// fan of buttons around FIRE (angles measured towards the screen centre)
+		float D = 2.0f * u;
+		auto polar = [&](float deg, float rad, VIn in, int icon, int cr, int cg, int cb) {
+			float a = deg * Pi / 180.0f;
+			float dx = std::cos(a) * D, dy = -std::sin(a) * D;
+			add(L ? fx - dx : fx + dx, fy + dy, rad, in, icon, cr, cg, cb);
+		};
+		if (cfg.digButton)
+		{
+			polar(188, 0.58f * u, VJump, ui::IJump, 60, 140, 250);
+			polar(152, 0.5f * u, VDig, ui::IDig, 245, 185, 40);
+			polar(118, 0.55f * u, VRope, ui::IRope, 175, 90, 240);
+			polar(86, 0.5f * u, VSwapTap, ui::ISwap, 150, 160, 185);
+		}
+		else
+		{
+			polar(180, 0.58f * u, VJump, ui::IJump, 60, 140, 250);
+			polar(125, 0.55f * u, VRope, ui::IRope, 175, 90, 240);
+			polar(86, 0.5f * u, VSwapTap, ui::ISwap, 150, 160, 185);
+		}
 	}
 	else
 	{
-		add(XR(side), h_ - u * 1.45f, u * 0.72f, VEnter, IconOk, 70, 200, 90);
-		add(XR(side + u * 1.6f), h_ - u * 0.9f, u * 0.56f, VEscape, IconBack, 200, 80, 80);
+		add(fx, fy, fr, VEnter, ui::IOk, 70, 200, 90);
+		add(L ? fx + 1.75f * u : fx - 1.75f * u, h_ - m - 0.55f * u, 0.55f * u, VEscape, ui::IBack, 210, 80, 80);
 	}
 
-	pauseBtn.x = XR(std::max(u * 0.6f, (float)game_.x * 0.5f));
-	pauseBtn.y = u * 0.65f;
-	pauseBtn.r = u * 0.42f;
+	// Pause: the HD HUD places it next to the minimap; default before first frame.
+	pauseBtn.x = w_ - 330 * s; pauseBtn.y = 43 * s; pauseBtn.r = 29 * s;
 	pauseBtn.in = VEscape;
-	pauseBtn.icon = IconPause;
-	pauseBtn.cr = 230; pauseBtn.cg = 230; pauseBtn.cb = 240;
+	pauseBtn.icon = ui::IPause;
 
-	// Machine-readable layout for the emulator test script.
+	char buf[512];
+	int n = std::snprintf(buf, sizeof(buf), "liero-layout mode=%d win=%dx%d game=%d,%d,%d,%d stick=%d,%d,%d pause=%d,%d",
+		(int)mode_, w_, h_, game_.x, game_.y, game_.w, game_.h, (int)stickX, (int)stickY, (int)stickR,
+		(int)pauseBtn.x, (int)pauseBtn.y);
+	for (int i = 0; i < buttonCount && n < (int)sizeof(buf) - 32; ++i)
+		n += std::snprintf(buf + n, sizeof(buf) - n, " b%d=%d,%d", (int)buttons[i].in, (int)buttons[i].x, (int)buttons[i].y);
+	SDL_Log("%s", buf);
+}
+
+void Input::hudBounds(float& left, float& right) const
+{
+	float a = stickX - stickR * 1.05f, b = stickX + stickR * 1.05f;
+	float lo = 1e9f, hi = -1e9f;
+	for (int i = 0; i < buttonCount; ++i)
 	{
-		char buf[512];
-		int n = std::snprintf(buf, sizeof(buf), "liero-layout mode=%d win=%dx%d game=%d,%d,%d,%d stick=%d,%d,%d pause=%d,%d",
-			(int)mode_, w_, h_, game_.x, game_.y, game_.w, game_.h, (int)stickX, (int)stickY, (int)stickR,
-			(int)pauseBtn.x, (int)pauseBtn.y);
-		for (int i = 0; i < buttonCount && n < (int)sizeof(buf) - 32; ++i)
-			n += std::snprintf(buf + n, sizeof(buf) - n, " b%d=%d,%d", (int)buttons[i].in, (int)buttons[i].x, (int)buttons[i].y);
-		SDL_Log("%s", buf);
+		lo = std::min(lo, buttons[i].x - buttons[i].r * 1.1f);
+		hi = std::max(hi, buttons[i].x + buttons[i].r * 1.1f);
 	}
+	if (!cfg.leftHanded) { left = b; right = lo; }
+	else { left = hi; right = a; }
+	if (right - left < w_ * 0.3f) { left = w_ * 0.35f; right = w_ * 0.65f; }
 }
 
 void Input::applyKey(uint32_t dosKey, bool down, Controller* controller)
@@ -248,6 +168,18 @@ void Input::applyKey(uint32_t dosKey, bool down, Controller* controller)
 	gfx.dosKeys[dosKey] = down;
 	if (controller)
 		controller->onKey(dosKey, down);
+}
+
+void Input::selectWeapon(int current, int target)
+{
+	if (target < 0 || target > 4 || target == current || mode_ != Mode::Game)
+		return;
+	int fwd = (target - current + 5) % 5, back = (current - target + 5) % 5;
+	uint8_t dir = fwd <= back ? 2 : 4;
+	int steps = std::min(fwd, back);
+	seq.clear();
+	seq.push_back(1);
+	for (int i = 0; i < steps; ++i) { seq.push_back(1 | dir); seq.push_back(1); }
 }
 
 void Input::sync(Controller* controller)
@@ -265,14 +197,14 @@ void Input::sync(Controller* controller)
 
 	if (mode_ == Mode::Game)
 	{
-		bool swapping = swapPhase > 0;
+		bool scripted = seqNow != 0;
 		set(wormKey(WormSettings::Up), v[VUp]);
 		set(wormKey(WormSettings::Down), v[VDown]);
-		set(wormKey(WormSettings::Left), v[VLeft] && !swapping);
-		set(wormKey(WormSettings::Right), (v[VRight] && !swapping) || swapPhase == 2);
+		set(wormKey(WormSettings::Left), (scripted ? (seqNow & 4) != 0 : v[VLeft]) || v[VDig]);
+		set(wormKey(WormSettings::Right), (scripted ? (seqNow & 2) != 0 : v[VRight]) || v[VDig]);
 		set(wormKey(WormSettings::Fire), v[VFire]);
 		set(wormKey(WormSettings::Jump), v[VJump] || v[VRope]);
-		set(wormKey(WormSettings::Change), v[VChange] || v[VRope] || swapping);
+		set(wormKey(WormSettings::Change), v[VChange] || v[VRope] || (seqNow & 1));
 		set(DkEscape, v[VEscape]);
 	}
 	else
@@ -294,10 +226,12 @@ void Input::sync(Controller* controller)
 		applyKey(k, desired[k], controller);
 	}
 
-	// Rising edge of the swap tap queues a weapon-change pulse.
+	// Rising edge of the swap tap: next weapon.
 	bool swapNow = v[VSwapTap];
-	if (swapNow && !lastSwap)
-		swapQueued = true;
+	if (swapNow && !lastSwap && mode_ == Mode::Game && seq.empty() && seqNow == 0)
+	{
+		seq.push_back(1); seq.push_back(3); seq.push_back(1);
+	}
 	lastSwap = swapNow;
 }
 
@@ -308,7 +242,7 @@ void Input::releaseAll(Controller* controller)
 	for (int i = 0; i < buttonCount; ++i) { buttons[i].down = false; buttons[i].finger = -1; }
 	pauseBtn.down = false; pauseBtn.finger = -1;
 	stickFinger = -1; knobDX = knobDY = 0;
-	swapPhase = 0; swapQueued = false;
+	seq.clear(); seqNow = 0;
 	++frameNo;
 	for (uint32_t k = 1; k < 177; ++k)
 		applyKey(k, false, controller);
@@ -318,22 +252,13 @@ void Input::update(Controller* controller)
 {
 	if (mode_ == Mode::Game)
 	{
-		if (swapPhase > 0)
-		{
-			++swapPhase;
-			if (swapPhase > 4)
-				swapPhase = 0;
-		}
-		else if (swapQueued)
-		{
-			swapQueued = false;
-			swapPhase = 1;
-		}
+		if (!seq.empty()) { seqNow = seq.front(); seq.pop_front(); }
+		else seqNow = 0;
 	}
 	else
 	{
-		swapPhase = 0;
-		swapQueued = false;
+		seq.clear();
+		seqNow = 0;
 	}
 	sync(controller);
 	++frameNo; // the game frame that follows sees everything pressed so far
@@ -357,38 +282,59 @@ bool Input::handleEvent(SDL_Event const& ev, Controller* controller)
 
 		if (ev.type == SDL_FINGERDOWN)
 		{
-			float dxp = x - pauseBtn.x, dyp = y - pauseBtn.y;
-			float pr = pauseBtn.r * 1.3f;
-			if (dxp * dxp + dyp * dyp <= pr * pr)
+			if (mode_ == Mode::Game)
 			{
-				pauseBtn.down = true; pauseBtn.finger = id;
-				want[VEscape] = true;
-				sync(controller);
-				return true;
+				// Pause button (position comes from the HUD)
+				SDL_FRect pr = view.pauseRect;
+				if (pr.w > 0)
+				{
+					pauseBtn.x = pr.x + pr.w / 2; pauseBtn.y = pr.y + pr.h / 2; pauseBtn.r = pr.w / 2;
+				}
+				float dxp = x - pauseBtn.x, dyp = y - pauseBtn.y, rr = pauseBtn.r * 1.35f;
+				if (dxp * dxp + dyp * dyp <= rr * rr)
+				{
+					pauseBtn.down = true; pauseBtn.finger = id;
+					want[VEscape] = true;
+					buzz();
+					sync(controller);
+					return true;
+				}
+				// Weapon bar slots
+				if (view.active && view.game)
+				{
+					for (int i = 0; i < view.slotCount; ++i)
+						if (ui::inside(view.slotRect[i], x, y))
+						{
+							Worm& me = *view.game->worms[0];
+							selectWeapon(me.currentWeapon, i);
+							buzz();
+							return true;
+						}
+				}
 			}
-			// Buttons first (generous hit radius), nearest wins.
+			// Buttons (generous hit radius), nearest wins.
 			int best = -1; float bestD = 1e9f;
 			for (int i = 0; i < buttonCount; ++i)
 			{
 				Button& b = buttons[i];
 				float dx = x - b.x, dy = y - b.y;
 				float d = std::sqrt(dx * dx + dy * dy);
-				if (d <= b.r * 1.35f && d < bestD && b.finger == -1) { best = i; bestD = d; }
+				if (d <= b.r * 1.3f && d < bestD && b.finger == -1) { best = i; bestD = d; }
 			}
 			if (best >= 0)
 			{
 				buttons[best].down = true;
 				buttons[best].finger = id;
 				want[buttons[best].in] = true;
+				buzz();
 				sync(controller);
 				return true;
 			}
-			// Stick: anywhere on the stick half of the screen.
+			// Stick: anywhere on the stick half of the screen (floating origin
+			// if the touch starts away from the drawn stick).
 			bool stickSide = cfg.leftHanded ? (x > w_ * 0.5f) : (x < w_ * 0.5f);
 			if (stickFinger == -1 && stickSide)
-			{
 				stickFinger = id;
-			}
 			else
 				return false;
 		}
@@ -431,16 +377,13 @@ bool Input::handleEvent(SDL_Event const& ev, Controller* controller)
 				float maxLen = stickR * 0.75f;
 				if (len > maxLen) { knobDX = dx / len * maxLen; knobDY = dy / len * maxLen; }
 				else { knobDX = dx; knobDY = dy; }
-				float dead = stickR * (mode_ == Mode::Menu ? 0.35f : 0.22f);
-				// 8-way with ~45 degree sectors (diagonals allowed, like holding two keys)
+				float dead = stickR * (mode_ == Mode::Menu ? std::max(0.35f, cfg.deadZone) : cfg.deadZone);
 				bool up = false, down = false, left = false, right = false;
 				if (len > dead)
 				{
-					float a = std::atan2(dy, dx); // -pi..pi, 0 = right, +y down
-					float deg = a * 180.0f / Pi;
+					float deg = std::atan2(dy, dx) * 180.0f / Pi; // 0 = right, +y down
 					if (mode_ == Mode::Menu)
 					{
-						// 4-way in menus to avoid accidental double moves
 						if (deg > -45 && deg <= 45) right = true;
 						else if (deg > 45 && deg <= 135) down = true;
 						else if (deg > -135 && deg <= -45) up = true;
@@ -482,7 +425,7 @@ bool Input::handleEvent(SDL_Event const& ev, Controller* controller)
 		case SDL_CONTROLLER_BUTTON_Y: padBtn[VRope] = down; break;
 		case SDL_CONTROLLER_BUTTON_B: padBtn[mode_ == Mode::Game ? VChange : VEscape] = down; if (!down) { padBtn[VChange] = padBtn[VEscape] = false; } break;
 		case SDL_CONTROLLER_BUTTON_RIGHTSHOULDER: padBtn[VSwapTap] = down; break;
-		case SDL_CONTROLLER_BUTTON_LEFTSHOULDER: padBtn[VChange] = down; break;
+		case SDL_CONTROLLER_BUTTON_LEFTSHOULDER: padBtn[VDig] = down; break;
 		case SDL_CONTROLLER_BUTTON_START:
 		case SDL_CONTROLLER_BUTTON_BACK: padBtn[VEscape] = down; break;
 		default: break;
@@ -519,30 +462,28 @@ void Input::draw(SDL_Renderer* r)
 	SDL_SetRenderDrawBlendMode(r, SDL_BLENDMODE_BLEND);
 	float a = cfg.opacity;
 
-	// Stick / d-pad
-	fillCircle(r, stickX, stickY, stickR, rgba(20, 16, 40, a * 0.55f));
-	ring(r, stickX, stickY, stickR, std::max(3.0f, stickR * 0.06f), rgba(200, 200, 230, a * 0.8f));
-	float ar = stickR * 0.16f;
-	SDL_Color arrowC = rgba(220, 220, 240, a * 0.85f);
-	tri(r, { stickX, stickY - stickR * 0.85f }, { stickX - ar, stickY - stickR * 0.85f + ar }, { stickX + ar, stickY - stickR * 0.85f + ar }, arrowC);
-	tri(r, { stickX, stickY + stickR * 0.85f }, { stickX + ar, stickY + stickR * 0.85f - ar }, { stickX - ar, stickY + stickR * 0.85f - ar }, arrowC);
-	tri(r, { stickX - stickR * 0.85f, stickY }, { stickX - stickR * 0.85f + ar, stickY + ar }, { stickX - stickR * 0.85f + ar, stickY - ar }, arrowC);
-	tri(r, { stickX + stickR * 0.85f, stickY }, { stickX + stickR * 0.85f - ar, stickY - ar }, { stickX + stickR * 0.85f - ar, stickY + ar }, arrowC);
-	float kx = stickX + knobDX, ky = stickY + knobDY;
-	fillCircle(r, kx, ky, stickR * 0.42f, rgba(170, 170, 190, a * (stickFinger != -1 ? 1.0f : 0.8f)));
-	ring(r, kx, ky, stickR * 0.42f, std::max(2.0f, stickR * 0.04f), rgba(255, 255, 255, a));
+	// Stick (metal ring + knob, like the reference art)
+	ui::fillCircle(r, stickX, stickY, stickR, ui::rgba(14, 16, 30, a * 0.6f));
+	ui::ring(r, stickX, stickY, stickR, std::max(4.0f, stickR * 0.09f), ui::rgba(120, 125, 150, a * 0.9f));
+	ui::ring(r, stickX, stickY, stickR * 0.93f, std::max(2.0f, stickR * 0.03f), ui::rgba(200, 205, 225, a * 0.5f));
+	float ar = stickR * 0.13f, e = stickR * 0.78f;
+	SDL_Color arrowC = ui::rgba(210, 212, 230, a * 0.85f);
+	ui::tri(r, { stickX, stickY - e - ar * 0.4f }, { stickX - ar, stickY - e + ar * 0.8f }, { stickX + ar, stickY - e + ar * 0.8f }, arrowC);
+	ui::tri(r, { stickX, stickY + e + ar * 0.4f }, { stickX + ar, stickY + e - ar * 0.8f }, { stickX - ar, stickY + e - ar * 0.8f }, arrowC);
+	ui::tri(r, { stickX - e - ar * 0.4f, stickY }, { stickX - e + ar * 0.8f, stickY + ar }, { stickX - e + ar * 0.8f, stickY - ar }, arrowC);
+	ui::tri(r, { stickX + e + ar * 0.4f, stickY }, { stickX + e - ar * 0.8f, stickY - ar }, { stickX + e - ar * 0.8f, stickY + ar }, arrowC);
+	float kx = stickX + knobDX, ky = stickY + knobDY, kr = stickR * 0.4f;
+	ui::fillCircle(r, kx, ky + kr * 0.08f, kr * 1.04f, ui::rgba(20, 20, 30, a * 0.7f));
+	ui::fillCircle(r, kx, ky, kr, ui::rgba(150, 152, 165, a * (stickFinger != -1 ? 1.0f : 0.9f)));
+	ui::fillCircle(r, kx - kr * 0.2f, ky - kr * 0.25f, kr * 0.62f, ui::rgba(200, 202, 215, a * 0.6f));
+	ui::ring(r, kx, ky, kr, std::max(2.0f, kr * 0.07f), ui::rgba(235, 236, 245, a));
 
-	auto drawButton = [&](Button const& b) {
-		float alpha = a * (b.down ? 1.0f : 0.75f);
-		fillCircle(r, b.x, b.y, b.r, rgba(b.cr / 3, b.cg / 3, b.cb / 3, alpha * 0.7f));
-		fillCircle(r, b.x, b.y, b.r * 0.86f, rgba(b.cr, b.cg, b.cb, alpha * (b.down ? 0.95f : 0.6f)));
-		ring(r, b.x, b.y, b.r, std::max(3.0f, b.r * 0.08f), rgba(std::min(255, b.cr + 60), std::min(255, b.cg + 60), std::min(255, b.cb + 60), alpha));
-		drawIcon(r, b.icon, b.x, b.y, b.r * 0.55f, rgba(255, 255, 255, std::min(1.0f, alpha * 1.3f)));
-	};
 	for (int i = 0; i < buttonCount; ++i)
-		drawButton(buttons[i]);
-	if (mode_ == Mode::Game)
-		drawButton(pauseBtn);
+	{
+		Button const& b = buttons[i];
+		ui::actionButton(r, b.x, b.y, b.r, ui::rgba(b.cr, b.cg, b.cb), b.icon, b.down, a);
+	}
+	// Pause is drawn by the HUD in Game mode.
 }
 
 } // namespace mobile

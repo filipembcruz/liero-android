@@ -7,8 +7,9 @@ OUT="$ROOT/game/assets-gen"
 rm -rf "$OUT"
 mkdir -p "$OUT"
 cp -r "$ROOT/game/TC" "$OUT/TC"
+cp -r "$ROOT/game/ui" "$OUT/ui"
 cd "$OUT"
-FILES=$(find TC -type f | LC_ALL=C sort)
+FILES=$(find TC ui -type f | LC_ALL=C sort)
 HASH=$(cat $FILES | sha256sum | cut -c1-16)
 { echo "$HASH"; echo "$FILES"; } > liero_files.txt
 echo "assets: $(echo "$FILES" | wc -l) files, version $HASH"

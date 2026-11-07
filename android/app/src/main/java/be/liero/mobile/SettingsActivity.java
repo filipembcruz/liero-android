@@ -63,8 +63,24 @@ public class SettingsActivity extends Activity {
             "Analógico/D-pad: andar e mirar · A: pular · X ou RT: atirar · Y ou LT: corda ninja · "
             + "B ou LB: trocar (segure + ←/→) · RB: próxima arma · Start: pausa");
 
-        LinearLayout orig = ui.card("Opções do Liero original",
-            "Modo de jogo, armas, tempo de recarga, sangue etc. ficam no menu do próprio jogo: "
-            + "durante a partida toque em Pausa (ou Voltar).");
+        LinearLayout game = ui.card("Tempo de carregamento das armas",
+            "Recarga das armas (opção LOADING TIMES do original). 100% = original.");
+        int[] lt = { 0, 25, 50, 75, 100, 150, 200, 300, 500 };
+        String[] ltl = new String[lt.length];
+        int ltSel = 4;
+        for (int i = 0; i < lt.length; ++i) { ltl[i] = lt[i] + "%"; if (lt[i] == p.loadingTime()) ltSel = i; }
+        ui.segmented(game, ltl, ltSel, i -> p.edit().putInt("loadingTime", lt[i]).apply());
+
+        LinearLayout vis = ui.card("Visual", "Campo de visão: Amplo e Máximo mostram mais do mapa e preenchem a tela.");
+        ui.segmented(vis, new String[] { "Perto", "Amplo", "Máximo" }, p.fov(), i -> p.edit().putInt("fov", i).apply());
+        TextView sm = ui.text("Estilo dos pixels", 15, Ui.TEXT);
+        sm.setPadding(0, ui.dp(8), 0, ui.dp(6));
+        vis.addView(sm);
+        ui.segmented(vis, new String[] { "Pixel clássico", "Suave" }, p.smooth() ? 1 : 0,
+            i -> p.edit().putBoolean("smooth", i == 1).apply());
+
+        ui.card("Durante a partida",
+            "Toque em Pausa (ou Voltar) para abrir o menu com Configurações: controles, tempo de carregamento, "
+            + "vidas, dificuldade, sangue e campo de visão. O menu original do Liero fica em Avançado.");
     }
 }
