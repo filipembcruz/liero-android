@@ -8,6 +8,7 @@
 | Sons originais LIERO.SND (Molez) | — | "freeware", mas o upstream os deixa fora do repositório por copyright | **Não** (precisariam ser fornecidos à parte) |
 | SDL 2.30 | libsdl.org | zlib | Sim |
 | miniz, fdlibm, stb_vorbis (embutidos no código) | — | MIT/domínio público | Sim |
+| Fonte Poppins Bold (`game/ui/font.bin`, atlas gerado por `tools/gen-font.py`) | Indian Type Foundry | SIL Open Font License 1.1 | Sim |
 | Arte do menu/carregamento (`android/.../drawable-nodpi`) | fornecida pelo dono do projeto | — | Sim |
 
 Não sou advogado; este é um resumo dos avisos publicados.

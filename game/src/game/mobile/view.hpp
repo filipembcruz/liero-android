@@ -27,6 +27,8 @@ struct View
 	// Called once per displayed frame while a match is shown.
 	void update(Game& game);
 	void present(SDL_Renderer* r, Game& game, bool hud = true);
+	// Palette without the original fade-to-black (frozen background behind menus).
+	void unfade(Game& game);
 
 	bool active = false;
 	Game* game = nullptr;

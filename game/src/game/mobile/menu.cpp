@@ -142,7 +142,10 @@ void background(Game* game, float dim, bool hud = true)
 	SDL_SetRenderDrawColor(F.r, 8, 6, 20, 255);
 	SDL_RenderClear(F.r);
 	if (game && view.game == game)
+	{
+		view.unfade(*game);
 		view.present(F.r, *game, hud && game->cycles > 0);
+	}
 	SDL_SetRenderDrawBlendMode(F.r, SDL_BLENDMODE_BLEND);
 	ui::roundRectV(F.r, { -10, -10, (float)F.w + 20, (float)F.h + 20 }, 1, ui::rgba(10, 6, 30, dim), ui::rgba(30, 10, 50, dim));
 }

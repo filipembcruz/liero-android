@@ -144,6 +144,16 @@ void View::update(Game& g)
 		renderer_.pal.lightUp(g.screenFlash);
 }
 
+void View::unfade(Game& g)
+{
+	if (!vp_)
+		return;
+	Common& common = *g.common;
+	renderer_.pal = renderer_.origpal;
+	for (int w = 0; w < 4; ++w)
+		renderer_.pal.rotateFrom(renderer_.origpal, common.colorAnim[w].from, common.colorAnim[w].to, g.cycles >> 3);
+}
+
 void View::ensureIcons(SDL_Renderer* r, Common& common)
 {
 	if (iconCommon_ == &common && !weaponIcons_.empty())
