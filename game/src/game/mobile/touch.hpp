@@ -36,6 +36,7 @@ enum VIn
 	VSwapTap,     // tap = next weapon (Change held + Right pulse)
 	VEnter, VEscape,
 	VDig,         // Left+Right together (original "dig")
+	VPrevTap,     // previous weapon (Change held + Left pulse)
 	VCount
 };
 
@@ -120,7 +121,8 @@ private:
 	// Scripted key sequence (weapon change). Bits: 1 = Change, 2 = Right, 4 = Left.
 	std::deque<uint8_t> seq;
 	uint8_t seqNow = 0;
-	bool lastSwap = false;
+	bool lastSwap = false, lastPrev = false;
+	bool trigDown[2] = {};
 
 	SDL_Haptic* haptic = nullptr;
 	bool hapticTried = false;

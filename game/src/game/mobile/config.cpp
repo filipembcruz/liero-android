@@ -19,7 +19,7 @@ struct Field { char const* key; int* i; std::string* s; };
 std::vector<Field> fields()
 {
 	Config& c = config;
-	return {
+	std::vector<Field> f = {
 		{ "name", nullptr, &c.name }, { "difficulty", &c.difficulty, nullptr }, { "lives", &c.lives, nullptr },
 		{ "newMap", &c.newMap, nullptr }, { "touchScale", &c.touchScale, nullptr },
 		{ "touchOpacity", &c.touchOpacity, nullptr }, { "lefty", &c.lefty, nullptr },
@@ -27,6 +27,10 @@ std::vector<Field> fields()
 		{ "smooth", &c.smooth, nullptr }, { "loadingTime", &c.loadingTime, nullptr },
 		{ "blood", &c.blood, nullptr }, { "minimap", &c.minimap, nullptr }, { "digButton", &c.digButton, nullptr },
 	};
+	static const char* padKeys[Config::PadCount] = { "padFire", "padJump", "padRope", "padChange", "padNext", "padPrev", "padDig", "padPause" };
+	for (int i = 0; i < Config::PadCount; ++i)
+		f.push_back({ padKeys[i], &c.pad[i], nullptr });
+	return f;
 }
 
 int clampi(int v, int lo, int hi) { return v < lo ? lo : v > hi ? hi : v; }
@@ -66,6 +70,28 @@ void loadConfig()
 	c.blood = clampi(c.blood, 0, 500);
 	if (c.name.empty()) c.name = "Jogador";
 	if (c.name.size() > 20) c.name.resize(20);
+}
+
+char const* padActionName(int a)
+{
+	static const char* n[Config::PadCount] = { "Atirar", "Pular", "Corda ninja", "Trocar (segurar)", "Próxima arma", "Arma anterior", "Cavar", "Pausa" };
+	return a >= 0 && a < Config::PadCount ? n[a] : "?";
+}
+
+std::string padButtonName(int code)
+{
+	switch (code)
+	{
+	case 0: return "A"; case 1: return "B"; case 2: return "X"; case 3: return "Y";
+	case 4: return "Select/Back"; case 5: return "Guide"; case 6: return "Start";
+	case 7: return "L3"; case 8: return "R3"; case 9: return "LB / L1"; case 10: return "RB / R1";
+	case 11: return "D-pad cima"; case 12: return "D-pad baixo"; case 13: return "D-pad esq."; case 14: return "D-pad dir.";
+	case 15: return "Misc"; case 16: return "Paddle 1"; case 17: return "Paddle 2"; case 18: return "Paddle 3"; case 19: return "Paddle 4";
+	case 20: return "Touchpad";
+	case 100: return "LT / L2"; case 101: return "RT / R2";
+	case -1: return "—";
+	default: return "Botão " + std::to_string(code);
+	}
 }
 
 void saveConfig()

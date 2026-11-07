@@ -28,7 +28,15 @@ struct Config
 	int blood = 100;       // % (original "AMOUNT OF BLOOD")
 	int minimap = 1;
 	int digButton = 1;
+
+	// Gamepad mapping (direction keys are fixed: D-pad / left stick).
+	// Values: SDL_GameControllerButton, or 100 = left trigger, 101 = right trigger.
+	enum PadAction { PadFire, PadJump, PadRope, PadChange, PadNext, PadPrev, PadDig, PadPause, PadCount };
+	int pad[PadCount] = { 101, 0, 100, 1, 10, 9, 3, 6 };
 };
+
+char const* padActionName(int action);
+std::string padButtonName(int code);
 
 extern Config config;
 

@@ -1,6 +1,7 @@
 #include "touch.hpp"
 #include "ui.hpp"
 #include "view.hpp"
+#include "config.hpp"
 
 #include "../gfx.hpp"
 #include "../keys.hpp"
@@ -233,6 +234,12 @@ void Input::sync(Controller* controller)
 		seq.push_back(1); seq.push_back(3); seq.push_back(1);
 	}
 	lastSwap = swapNow;
+	bool prevNow = v[VPrevTap];
+	if (prevNow && !lastPrev && mode_ == Mode::Game && seq.empty() && seqNow == 0)
+	{
+		seq.push_back(1); seq.push_back(5); seq.push_back(1);
+	}
+	lastPrev = prevNow;
 }
 
 void Input::releaseAll(Controller* controller)
@@ -411,45 +418,65 @@ bool Input::handleEvent(SDL_Event const& ev, Controller* controller)
 
 	case SDL_CONTROLLERBUTTONDOWN:
 	case SDL_CONTROLLERBUTTONUP:
+	case SDL_CONTROLLERAXISMOTION:
 	{
-		bool down = ev.type == SDL_CONTROLLERBUTTONDOWN;
-		if (down && !usingPad) { usingPad = true; cfg.visible = false; }
-		switch (ev.cbutton.button)
+		const int th = 12000;
+		int code = -1; bool down = false;
+		if (ev.type == SDL_CONTROLLERAXISMOTION)
 		{
-		case SDL_CONTROLLER_BUTTON_DPAD_UP: padDir[0] = down; break;
-		case SDL_CONTROLLER_BUTTON_DPAD_DOWN: padDir[1] = down; break;
-		case SDL_CONTROLLER_BUTTON_DPAD_LEFT: padDir[2] = down; break;
-		case SDL_CONTROLLER_BUTTON_DPAD_RIGHT: padDir[3] = down; break;
-		case SDL_CONTROLLER_BUTTON_A: padBtn[mode_ == Mode::Game ? VJump : VEnter] = down; if (!down) { padBtn[VJump] = padBtn[VEnter] = false; } break;
-		case SDL_CONTROLLER_BUTTON_X: padBtn[VFire] = down; break;
-		case SDL_CONTROLLER_BUTTON_Y: padBtn[VRope] = down; break;
-		case SDL_CONTROLLER_BUTTON_B: padBtn[mode_ == Mode::Game ? VChange : VEscape] = down; if (!down) { padBtn[VChange] = padBtn[VEscape] = false; } break;
-		case SDL_CONTROLLER_BUTTON_RIGHTSHOULDER: padBtn[VSwapTap] = down; break;
-		case SDL_CONTROLLER_BUTTON_LEFTSHOULDER: padBtn[VDig] = down; break;
-		case SDL_CONTROLLER_BUTTON_START:
-		case SDL_CONTROLLER_BUTTON_BACK: padBtn[VEscape] = down; break;
-		default: break;
+			int v = ev.caxis.value;
+			switch (ev.caxis.axis)
+			{
+			case SDL_CONTROLLER_AXIS_LEFTX: padDir[2] = v < -th; padDir[3] = v > th; break;
+			case SDL_CONTROLLER_AXIS_LEFTY: padDir[0] = v < -th; padDir[1] = v > th; break;
+			case SDL_CONTROLLER_AXIS_TRIGGERLEFT:
+			case SDL_CONTROLLER_AXIS_TRIGGERRIGHT:
+			{
+				int t = ev.caxis.axis == SDL_CONTROLLER_AXIS_TRIGGERLEFT ? 0 : 1;
+				bool d = v > 8000;
+				if (d == trigDown[t]) return true;
+				trigDown[t] = d;
+				code = 100 + t; down = d;
+				break;
+			}
+			default: return false;
+			}
+			if (std::abs(v) > th && !usingPad) { usingPad = true; cfg.visible = false; }
+		}
+		else
+		{
+			down = ev.type == SDL_CONTROLLERBUTTONDOWN;
+			if (down && !usingPad) { usingPad = true; cfg.visible = false; }
+			switch (ev.cbutton.button)
+			{
+			case SDL_CONTROLLER_BUTTON_DPAD_UP: padDir[0] = down; break;
+			case SDL_CONTROLLER_BUTTON_DPAD_DOWN: padDir[1] = down; break;
+			case SDL_CONTROLLER_BUTTON_DPAD_LEFT: padDir[2] = down; break;
+			case SDL_CONTROLLER_BUTTON_DPAD_RIGHT: padDir[3] = down; break;
+			default: break;
+			}
+			code = ev.cbutton.button;
+		}
+		if (code >= 0)
+		{
+			if (mode_ == Mode::Menu)
+			{
+				// Menus: A = OK, B = back, Start = back (fixed)
+				if (code == SDL_CONTROLLER_BUTTON_A) padBtn[VEnter] = down;
+				if (code == SDL_CONTROLLER_BUTTON_B || code == SDL_CONTROLLER_BUTTON_START || code == SDL_CONTROLLER_BUTTON_BACK) padBtn[VEscape] = down;
+			}
+			else
+			{
+				static const VIn act[Config::PadCount] = { VFire, VJump, VRope, VChange, VSwapTap, VPrevTap, VDig, VEscape };
+				for (int i = 0; i < Config::PadCount; ++i)
+					if (config.pad[i] == code)
+						padBtn[act[i]] = down;
+			}
 		}
 		sync(controller);
 		return true;
 	}
 
-	case SDL_CONTROLLERAXISMOTION:
-	{
-		const int th = 12000;
-		int v = ev.caxis.value;
-		switch (ev.caxis.axis)
-		{
-		case SDL_CONTROLLER_AXIS_LEFTX: padDir[2] = v < -th; padDir[3] = v > th; break;
-		case SDL_CONTROLLER_AXIS_LEFTY: padDir[0] = v < -th; padDir[1] = v > th; break;
-		case SDL_CONTROLLER_AXIS_TRIGGERRIGHT: padBtn[VFire] = v > 8000; break;
-		case SDL_CONTROLLER_AXIS_TRIGGERLEFT: padBtn[VRope] = v > 8000; break;
-		default: return false;
-		}
-		if (std::abs(v) > th && !usingPad) { usingPad = true; cfg.visible = false; }
-		sync(controller);
-		return true;
-	}
 	default:
 		return false;
 	}

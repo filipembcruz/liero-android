@@ -39,6 +39,8 @@ struct Frame
 	// navigation
 	int navY = 0, navX = 0; bool activate = false, back = false;
 	bool quit = false;
+	int padPressed = -1; // controller button (or 100/101 trigger) pressed this frame
+	bool trig[2] = {};
 	// focus (gamepad)
 	int focus = 0, focusCount = 0;
 	bool usingPad = false;
@@ -48,7 +50,7 @@ Frame F;
 
 void pump()
 {
-	F.tapped = false; F.navY = F.navX = 0; F.activate = F.back = false;
+	F.tapped = false; F.navY = F.navX = 0; F.activate = F.back = false; F.padPressed = -1;
 	SDL_Event ev;
 	while (SDL_PollEvent(&ev))
 	{
@@ -83,8 +85,25 @@ void pump()
 		case SDL_CONTROLLERDEVICEADDED:
 			SDL_GameControllerOpen(ev.cdevice.which);
 			break;
+		case SDL_CONTROLLERAXISMOTION:
+			if (ev.caxis.axis == SDL_CONTROLLER_AXIS_TRIGGERLEFT || ev.caxis.axis == SDL_CONTROLLER_AXIS_TRIGGERRIGHT)
+			{
+				int t = ev.caxis.axis == SDL_CONTROLLER_AXIS_TRIGGERLEFT ? 0 : 1;
+				bool d = ev.caxis.value > 8000;
+				if (d && !F.trig[t]) F.padPressed = 100 + t;
+				F.trig[t] = d;
+			}
+			else if (ev.caxis.axis == SDL_CONTROLLER_AXIS_LEFTY)
+			{
+				static int last = 0;
+				int v = ev.caxis.value > 16000 ? 1 : ev.caxis.value < -16000 ? -1 : 0;
+				if (v && v != last) { F.navY = v; F.usingPad = true; }
+				last = v;
+			}
+			break;
 		case SDL_CONTROLLERBUTTONDOWN:
 			F.usingPad = true;
+			F.padPressed = ev.cbutton.button;
 			switch (ev.cbutton.button)
 			{
 			case SDL_CONTROLLER_BUTTON_DPAD_UP: F.navY = -1; break;
@@ -220,6 +239,32 @@ template<typename T> T cycle(T v, int d, std::vector<T> const& opts)
 
 // ---------------------------------------------------------------------------
 
+// Modal: wait for a controller button/trigger. Returns code, or -1 if cancelled.
+int captureButton(Game* game, char const* action)
+{
+	SDL_FlushEvents(SDL_CONTROLLERBUTTONDOWN, SDL_CONTROLLERBUTTONUP);
+	Uint32 t0 = SDL_GetTicks();
+	while (true)
+	{
+		pump();
+		if (F.quit) return -1;
+		background(game, 0.85f);
+		float s = F.s;
+		SDL_FRect p = { F.w / 2.0f - 380 * s, F.h / 2.0f - 130 * s, 760 * s, 260 * s };
+		ui::panel(F.r, p, s, 0.96f);
+		ui::icon(F.r, ui::IJoystick, p.x + p.w / 2, p.y + 58 * s, 26 * s, ui::rgba(255, 215, 90));
+		ui::text(F.r, std::string("Aperte o botão para: ") + action, p.x + p.w / 2, p.y + 120 * s, 30 * s, ui::rgba(255, 255, 255), ui::Center);
+		ui::text(F.r, "Toque na tela para cancelar", p.x + p.w / 2, p.y + 170 * s, 20 * s, ui::rgba(170, 185, 240), ui::Center, false);
+		int secs = 10 - (int)((SDL_GetTicks() - t0) / 1000);
+		ui::text(F.r, std::to_string(std::max(0, secs)), p.x + p.w / 2, p.y + 215 * s, 24 * s, ui::rgba(255, 215, 90), ui::Center);
+		present();
+		if (F.padPressed >= 0 && F.padPressed < SDL_CONTROLLER_BUTTON_DPAD_UP) return F.padPressed;
+		if (F.padPressed >= 100) return F.padPressed;
+		if (F.padPressed > SDL_CONTROLLER_BUTTON_DPAD_RIGHT) return F.padPressed;
+		if (F.tapped || secs < 0 || F.back) return -1;
+	}
+}
+
 void settingsScreen(Game* game)
 {
 	int tab = 0;
@@ -236,10 +281,10 @@ void settingsScreen(Game* game)
 		ui::icon(F.r, ui::IGear, pnl.x + 44 * s, pnl.y + 44 * s, 20 * s, ui::rgba(255, 215, 90));
 		ui::text(F.r, "CONFIGURAÇÕES", pnl.x + 76 * s, pnl.y + 44 * s, 34 * s, ui::rgba(255, 255, 255));
 
-		static const char* tabs[3] = { "Controles", "Jogo", "Visual" };
-		for (int i = 0; i < 3; ++i)
+		static const char* tabs[4] = { "Toque", "Controle", "Jogo", "Visual" };
+		for (int i = 0; i < 4; ++i)
 		{
-			SDL_FRect t = { pnl.x + 420 * s + i * 225 * s, pnl.y + 18 * s, 210 * s, 54 * s };
+			SDL_FRect t = { pnl.x + 400 * s + i * 176 * s, pnl.y + 18 * s, 166 * s, 54 * s };
 			bool sel = tab == i;
 			ui::roundRectV(F.r, t, 14 * s, sel ? ui::rgba(255, 214, 70) : ui::rgba(60, 50, 120), sel ? ui::rgba(240, 160, 20) : ui::rgba(40, 32, 90));
 			ui::text(F.r, tabs[i], t.x + t.w / 2, t.y + t.h / 2, 24 * s, sel ? ui::rgba(60, 30, 10) : ui::rgba(255, 255, 255), ui::Center, !sel);
@@ -260,6 +305,45 @@ void settingsScreen(Game* game)
 			if ((d = stepper(row(), "Vibração", config.vibrate ? "Ligada" : "Desligada"))) { config.vibrate = d > 0 ? 1 : 0; applyLive(); }
 		}
 		else if (tab == 1)
+		{
+			// Gamepad mapping: two columns of 4 actions
+			ui::text(F.r, "Toque numa função e aperte o botão do controle. O direcional (D-pad/analógico) é fixo.",
+				pnl.x + 30 * s, y + 4 * s, 18 * s, ui::rgba(170, 185, 240), ui::Left, false);
+			y += 30 * s;
+			float colW = (pnl.w - 70 * s) / 2;
+			for (int a = 0; a < Config::PadCount; ++a)
+			{
+				SDL_FRect rr = { pnl.x + 28 * s + (a / 4) * (colW + 14 * s), y + (a % 4) * (rh + gap), colW, rh };
+				bool foc = focusable();
+				bool p = pressedNow(rr);
+				ui::roundRect(F.r, rr, 12 * s, ui::rgba(40, 50, 90, foc || p ? 0.95f : 0.7f));
+				if (foc) ui::roundRectOutline(F.r, rr, 12 * s, 3 * s, ui::rgba(255, 220, 90));
+				ui::text(F.r, padActionName(a), rr.x + 20 * s, rr.y + rr.h / 2, 23 * s, ui::rgba(255, 255, 255));
+				SDL_FRect chip = { rr.x + rr.w - 210 * s, rr.y + rr.h * 0.18f, 190 * s, rr.h * 0.64f };
+				ui::roundRectV(F.r, chip, 10 * s, ui::rgba(96, 72, 190), ui::rgba(64, 44, 140));
+				ui::roundRectOutline(F.r, chip, 10 * s, 2 * s, ui::rgba(170, 150, 255));
+				ui::text(F.r, padButtonName(config.pad[a]), chip.x + chip.w / 2, chip.y + chip.h / 2, 21 * s, ui::rgba(255, 215, 90), ui::Center);
+				if (clicked(rr) || (foc && F.activate))
+				{
+					click();
+					int code = captureButton(game, padActionName(a));
+					if (code >= 0)
+					{
+						for (int b = 0; b < Config::PadCount; ++b)
+							if (b != a && config.pad[b] == code) config.pad[b] = config.pad[a]; // swap
+						config.pad[a] = code;
+					}
+				}
+			}
+			y += 4 * (rh + gap);
+			SDL_FRect rs = { pnl.x + 28 * s, y + 4 * s, 330 * s, 56 * s };
+			if (button(rs, "PADRÃO", false, ui::IRestart))
+			{
+				Config d;
+				for (int a = 0; a < Config::PadCount; ++a) config.pad[a] = d.pad[a];
+			}
+		}
+		else if (tab == 2)
 		{
 			std::vector<int> lt = { 0, 25, 50, 75, 100, 150, 200, 300, 500 };
 			if ((d = stepper(row(), "Tempo de carregamento", pct(config.loadingTime), "Recarga das armas (original: LOADING TIMES)"))) { config.loadingTime = cycle(config.loadingTime, d, lt); applyLive(); }

@@ -145,10 +145,13 @@ int main(int argc, char** argv)
 	// 7) Settings (third button)
 	at(f + 5, [](SDL_Renderer*) { float x, y; pauseButton(2, true, x, y); tapAt(x, y); });
 	at(f + 15, [](SDL_Renderer* r) { shot(r, "09_settings_controls"); });
-	at(f + 20, [](SDL_Renderer*) { tapAt(W * 0.5f - 560 * S + 420 * S + 225 * S + 105 * S, 30 * S + 18 * S + 27 * S); });
-	at(f + 30, [](SDL_Renderer* r) { shot(r, "10_settings_game"); });
-	at(f + 35, [](SDL_Renderer*) { tapAt(W * 0.5f - 560 * S + 420 * S + 450 * S + 105 * S, 30 * S + 18 * S + 27 * S); });
-	at(f + 45, [](SDL_Renderer* r) { shot(r, "11_settings_visual"); });
+	auto tab = [](int i) { tapAt(W * 0.5f - 560 * S + 400 * S + i * 176 * S + 83 * S, 30 * S + 18 * S + 27 * S); };
+	at(f + 18, [tab](SDL_Renderer*) { tab(1); });
+	at(f + 26, [](SDL_Renderer* r) { shot(r, "10_settings_gamepad"); });
+	at(f + 30, [tab](SDL_Renderer*) { tab(2); });
+	at(f + 38, [](SDL_Renderer* r) { shot(r, "10b_settings_game"); });
+	at(f + 40, [tab](SDL_Renderer*) { tab(3); });
+	at(f + 46, [](SDL_Renderer* r) { shot(r, "11_settings_visual"); });
 	// back with Android BACK key
 	at(f + 50, [](SDL_Renderer*) {
 		SDL_Event e; SDL_zero(e);

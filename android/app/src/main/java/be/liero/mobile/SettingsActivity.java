@@ -60,8 +60,8 @@ public class SettingsActivity extends Activity {
             i -> p.edit().putBoolean("lefty", i == 1).apply());
 
         LinearLayout pad = ui.card("Controle Bluetooth",
-            "Analógico/D-pad: andar e mirar · A: pular · X ou RT: atirar · Y ou LT: corda ninja · "
-            + "B ou LB: trocar (segure + ←/→) · RB: próxima arma · Start: pausa");
+            "Direcional/analógico: andar e mirar. Os outros botões (atirar, pular, corda, trocar, próxima/anterior arma, "
+            + "cavar, pausa) você mapeia na partida: Pausa → Configurações → Controle.");
 
         LinearLayout game = ui.card("Tempo de carregamento das armas",
             "Recarga das armas (opção LOADING TIMES do original). 100% = original.");
