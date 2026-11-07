@@ -1,0 +1,113 @@
+#ifndef LIERO_MOBILE_TOUCH_HPP
+#define LIERO_MOBILE_TOUCH_HPP
+
+// Mobile input layer: on-screen touch controls + SDL GameController mapping.
+//
+// Everything here is translated into the *same* virtual key presses the PC
+// version receives from a keyboard (DOS scan codes from the player's control
+// settings), so the game rules/physics code is not touched at all.
+
+#include <SDL.h>
+#include <cstdint>
+
+struct Controller;
+
+namespace mobile {
+
+enum class Mode { Menu, Game };
+
+struct TouchConfig
+{
+	float scale = 1.0f;     // button size multiplier (0.6 .. 1.6)
+	float opacity = 0.55f;  // 0.15 .. 1.0
+	bool leftHanded = false; // mirror layout (buttons left, stick right)
+	bool visible = true;     // hide when a gamepad is in use
+};
+
+// Logical virtual inputs (merged from touch + gamepad).
+enum VIn
+{
+	VUp, VDown, VLeft, VRight,
+	VFire, VJump, VChange, VRope,
+	VSwapTap,     // tap = next weapon (Change held + Right pulse)
+	VEnter, VEscape,
+	VCount
+};
+
+struct Input
+{
+	void init(TouchConfig const& cfg);
+	void layout(int winW, int winH, SDL_Rect const& gameRect);
+	void setMode(Mode m);
+	Mode mode() const { return mode_; }
+
+	// Returns true if the event was consumed.
+	bool handleEvent(SDL_Event const& ev, Controller* controller);
+	// Called once per frame (drives pulse sequences like weapon swap).
+	void update(Controller* controller);
+	void draw(SDL_Renderer* r);
+	void releaseAll(Controller* controller);
+
+	TouchConfig cfg;
+
+	// Layout queries (used by the automated screenshot test).
+	bool buttonCenter(VIn in, float& x, float& y) const
+	{
+		if (in == VEscape && mode_ == Mode::Game) { x = pauseBtn.x; y = pauseBtn.y; return true; }
+		for (int i = 0; i < buttonCount; ++i)
+			if (buttons[i].in == in) { x = buttons[i].x; y = buttons[i].y; return true; }
+		return false;
+	}
+	void stickCenter(float& x, float& y, float& r) const { x = stickX; y = stickY; r = stickR; }
+	int width() const { return w_; }
+	int height() const { return h_; }
+
+private:
+	struct Button
+	{
+		float x = 0, y = 0, r = 0;
+		VIn in = VFire;
+		uint8_t cr = 255, cg = 255, cb = 255;
+		int icon = 0;
+		bool down = false;
+		SDL_FingerID finger = -1;
+	};
+
+	void applyKey(uint32_t dosKey, bool down, Controller* controller);
+	void sync(Controller* controller);
+	uint32_t wormKey(int control) const;
+
+	Mode mode_ = Mode::Menu;
+	int w_ = 0, h_ = 0;
+	SDL_Rect game_ {0, 0, 320, 200};
+
+	// joystick (game) / d-pad (menu)
+	float stickX = 0, stickY = 0, stickR = 0;
+	SDL_FingerID stickFinger = -1;
+	float knobDX = 0, knobDY = 0;
+	bool stickDir[4] = {}; // up, down, left, right
+
+	static const int MaxButtons = 8;
+	Button buttons[MaxButtons];
+	int buttonCount = 0;
+	Button pauseBtn;
+
+	// gamepad state
+	bool padBtn[VCount] = {};
+	bool padDir[4] = {};
+	int16_t axisX = 0, axisY = 0;
+	bool usingPad = false;
+
+	// resulting desired state of each virtual input + what was sent
+	bool want[VCount] = {};
+	bool sentDos[256] = {};
+	int swapPhase = 0;   // 0 idle, >0 frames into the pulse sequence
+	bool swapQueued = false;
+	bool lastSwap = false;
+};
+
+extern Input input;
+
+} // namespace mobile
+
+#endif

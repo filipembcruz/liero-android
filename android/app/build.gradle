@@ -1,0 +1,66 @@
+plugins { id 'com.android.application' }
+
+def vCode = (System.getenv("VERSION_CODE") ?: "1").toInteger()
+def vName = System.getenv("VERSION_NAME") ?: "0.1.0-dev"
+
+android {
+    namespace 'be.liero.mobile'
+    compileSdk 34
+    ndkVersion "27.2.12479018"
+
+    defaultConfig {
+        applicationId "be.liero.mobile"
+        minSdk 24
+        targetSdk 34
+        versionCode vCode
+        versionName vName
+        externalNativeBuild {
+            cmake {
+                arguments "-DANDROID_STL=c++_shared", "-DSDL_STATIC=OFF", "-DSDL_SHARED=ON", "-DSDL_TEST=OFF"
+                cppFlags "-std=c++14"
+            }
+        }
+        ndk { abiFilters 'arm64-v8a', 'armeabi-v7a', 'x86_64' }
+    }
+
+    signingConfigs {
+        release {
+            // CI provides a keystore; falls back to the debug key locally.
+            def ks = System.getenv("LIERO_KEYSTORE")
+            if (ks && file(ks).exists()) {
+                storeFile file(ks)
+                storePassword System.getenv("LIERO_KEYSTORE_PASSWORD")
+                keyAlias System.getenv("LIERO_KEY_ALIAS")
+                keyPassword System.getenv("LIERO_KEY_PASSWORD")
+            } else {
+                storeFile file("${System.getProperty('user.home')}/.android/debug.keystore")
+                storePassword "android"; keyAlias "androiddebugkey"; keyPassword "android"
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            signingConfig signingConfigs.release
+        }
+        debug { jniDebuggable true }
+    }
+
+    externalNativeBuild {
+        cmake { path "jni/CMakeLists.txt"; version "3.22.1" }
+    }
+
+    sourceSets {
+        main {
+            // SDL's Java glue comes from the SDL source checkout (same version as the C code).
+            java.srcDirs += ["jni/SDL/android-project/app/src/main/java"]
+            assets.srcDirs += ["../../game/assets-gen"]
+        }
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+    packagingOptions { jniLibs { useLegacyPackaging false } }
+}

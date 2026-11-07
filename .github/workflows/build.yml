@@ -1,0 +1,204 @@
+name: build
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  UPSTREAM_REPO: https://github.com/gliptic/liero
+  UPSTREAM_SHA: a2ed03cbbabc4fd0af0ed6f1e4f37aa4b69e45fa
+  SDL_TAG: release-2.30.12
+
+jobs:
+  fidelity:
+    name: Fidelity (port vs. original OpenLiero, x86_64 + ARM64)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install toolchains
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq libsdl2-dev g++-aarch64-linux-gnu qemu-user-static clang
+      - name: Fetch pristine upstream OpenLiero
+        run: |
+          git init -q upstream && cd upstream
+          git fetch -q --depth 1 "$UPSTREAM_REPO" "$UPSTREAM_SHA" && git checkout -q FETCH_HEAD
+      - name: Build reference (upstream, gcc x86_64)
+        run: |
+          cmake -S tests/sim -B build-ref -DLIERO_SRC=$PWD/upstream/src -DSDL2_INCLUDE_DIR=/usr/include/SDL2
+          cmake --build build-ref -j4
+      - name: Build port (gcc x86_64)
+        run: |
+          cmake -S tests/sim -B build-port -DLIERO_SRC=$PWD/game/src -DSDL2_INCLUDE_DIR=/usr/include/SDL2
+          cmake --build build-port -j4
+      - name: Build port (clang x86_64)
+        run: |
+          CC=clang CXX=clang++ cmake -S tests/sim -B build-port-clang -DLIERO_SRC=$PWD/game/src -DSDL2_INCLUDE_DIR=/usr/include/SDL2
+          cmake --build build-port-clang -j4
+      - name: Build port (ARM64, static, run under qemu)
+        run: |
+          cmake -S tests/sim -B build-port-arm64 -DLIERO_SRC=$PWD/game/src -DSDL2_INCLUDE_DIR=/usr/include/SDL2 \
+            -DCMAKE_C_COMPILER=aarch64-linux-gnu-gcc -DCMAKE_CXX_COMPILER=aarch64-linux-gnu-g++ -DLIERO_STATIC=ON \
+            -DCMAKE_SYSTEM_NAME=Linux -DCMAKE_SYSTEM_PROCESSOR=aarch64
+          cmake --build build-port-arm64 -j4
+          file build-port-arm64/liero_sim
+      - name: "Compare: upstream gcc vs port gcc"
+        run: OUT_DIR=traces/gcc tests/fidelity.sh build-ref/liero_sim build-port/liero_sim $PWD/game/TC/openliero
+      - name: "Compare: upstream gcc vs port clang"
+        run: OUT_DIR=traces/clang tests/fidelity.sh build-ref/liero_sim build-port-clang/liero_sim $PWD/game/TC/openliero
+      - name: "Compare: upstream x86_64 vs port ARM64"
+        run: OUT_DIR=traces/arm64 tests/fidelity.sh build-ref/liero_sim build-port-arm64/liero_sim $PWD/game/TC/openliero qemu-aarch64-static
+      - name: Original-renderer frames (PC reference)
+        run: |
+          mkdir -p pc-frames
+          build-ref/liero_sim $PWD/game/TC/openliero cpu 7 2000 /dev/null $PWD/pc-frames/pc_cpu
+          build-ref/liero_sim $PWD/game/TC/openliero rope 3 2000 /dev/null $PWD/pc-frames/pc_rope
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: fidelity-traces
+          path: |
+            traces/
+            pc-frames/
+
+  screenshots:
+    name: Screenshots (mobile build, offscreen, phone resolutions)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update -qq && sudo apt-get install -y -qq libsdl2-dev python3-pil
+      - name: Build mobile game for desktop
+        run: |
+          cmake -S tests/shots -B build-shots
+          cmake --build build-shots -j4
+      - name: Capture
+        run: |
+          for res in 3120x1440 2340x1080 1920x1080; do
+            rm -rf data && mkdir -p data/TC shots/$res && cp -r game/TC/openliero data/TC/
+            LIERO_TEST_WINDOW=$res SDL_VIDEODRIVER=offscreen SDL_AUDIODRIVER=dummy \
+              timeout 300 build-shots/liero_shots $PWD/data $PWD/shots/$res
+          done
+          python3 - <<'PY'
+          import glob
+          from PIL import Image
+          for f in glob.glob('shots/*/*.bmp'):
+              Image.open(f).convert('RGB').save(f[:-4] + '.png'); __import__('os').remove(f)
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: screenshots-desktop
+          path: shots/
+
+  android:
+    name: APK
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: '17' }
+      - uses: gradle/actions/setup-gradle@v4
+        with: { gradle-version: '8.10.2' }
+      - name: Android SDK packages
+        run: |
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null || true
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "ndk;27.2.12479018" "cmake;3.22.1" "platforms;android-34" "build-tools;34.0.0" >/dev/null
+      - name: Fetch SDL + pack data
+        run: |
+          SDL_TAG=$SDL_TAG scripts/fetch-sdl.sh
+          scripts/gen-assets.sh
+      # Signing key: from repo secrets if configured (LIERO_KEYSTORE_B64 +
+      # LIERO_KEYSTORE_PASSWORD), otherwise a key generated once and kept in
+      # the Actions cache so consecutive builds can update each other.
+      - name: Restore signing key cache
+        id: kscache
+        uses: actions/cache@v4
+        with:
+          path: ~/liero-keystore
+          key: liero-keystore-v1
+      - name: Prepare signing key
+        env:
+          KS_B64: ${{ secrets.LIERO_KEYSTORE_B64 }}
+          KS_PW: ${{ secrets.LIERO_KEYSTORE_PASSWORD }}
+        run: |
+          mkdir -p ~/liero-keystore
+          if [ -n "$KS_B64" ]; then
+            echo "$KS_B64" | base64 -d > ~/liero-keystore/release.jks
+            echo "$KS_PW" > ~/liero-keystore/pw
+            echo "using keystore from secrets"
+          elif [ ! -f ~/liero-keystore/release.jks ]; then
+            openssl rand -base64 24 | tr -d '\n' > ~/liero-keystore/pw
+            keytool -genkeypair -keystore ~/liero-keystore/release.jks -alias liero -keyalg RSA -keysize 2048 \
+              -validity 10000 -storepass "$(cat ~/liero-keystore/pw)" -keypass "$(cat ~/liero-keystore/pw)" \
+              -dname "CN=Liero Mobile" >/dev/null 2>&1
+            echo "generated new keystore (cached)"
+          else
+            echo "using cached keystore"
+          fi
+          keytool -list -v -keystore ~/liero-keystore/release.jks -storepass "$(cat ~/liero-keystore/pw)" 2>/dev/null | grep -m1 SHA256 || true
+      - name: Build
+        working-directory: android
+        env:
+          VERSION_CODE: ${{ github.run_number }}
+        run: |
+          export LIERO_KEYSTORE=$HOME/liero-keystore/release.jks
+          export LIERO_KEYSTORE_PASSWORD="$(cat ~/liero-keystore/pw)" LIERO_KEY_PASSWORD="$(cat ~/liero-keystore/pw)" LIERO_KEY_ALIAS=liero
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then export VERSION_NAME="${GITHUB_REF#refs/tags/v}"; else export VERSION_NAME="0.0.${GITHUB_RUN_NUMBER}-dev"; fi
+          gradle --no-daemon assembleRelease
+          mkdir -p ../out && cp app/build/outputs/apk/release/app-release.apk ../out/liero-mobile.apk
+          ls -la ../out
+      - uses: actions/upload-artifact@v4
+        with:
+          name: apk
+          path: out/liero-mobile.apk
+
+  emulator:
+    name: Run APK on Android emulator + screenshots
+    needs: android
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with: { name: apk, path: out }
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules && sudo udevadm trigger --name-match=kvm
+      - uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 30
+          arch: x86_64
+          target: google_apis
+          profile: pixel_6
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          script: bash tests/emulator.sh out/liero-mobile.apk emu-shots
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: screenshots-emulator
+          path: emu-shots/
+
+  release:
+    name: GitHub release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [fidelity, screenshots, android, emulator]
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with: { name: apk, path: out }
+      - name: Create release
+        env: { GH_TOKEN: '${{ github.token }}' }
+        run: |
+          cp out/liero-mobile.apk "out/liero-mobile-${GITHUB_REF_NAME}.apk"
+          NOTES=docs/release-notes/${GITHUB_REF_NAME}.md
+          [ -f "$NOTES" ] || NOTES=/dev/null
+          gh release create "$GITHUB_REF_NAME" "out/liero-mobile-${GITHUB_REF_NAME}.apk" \
+            --title "Liero Mobile ${GITHUB_REF_NAME}" --notes-file "$NOTES"

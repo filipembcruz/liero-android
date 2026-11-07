@@ -1,0 +1,13 @@
+# Desktop build of the MOBILE game code (LIERO_MOBILE) for automated screenshots.
+cmake_minimum_required(VERSION 3.16)
+project(liero_shots CXX C)
+find_package(SDL2 REQUIRED)
+set(LIERO_SRC ${CMAKE_CURRENT_LIST_DIR}/../../game/src)
+include(${CMAKE_CURRENT_LIST_DIR}/../../game/sources.cmake)
+set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O2 -w")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O2 -w")
+add_executable(liero_shots shot_main.cpp ${LIERO_MOBILE_SOURCES})
+target_compile_definitions(liero_shots PRIVATE LIERO_MOBILE=1)
+target_include_directories(liero_shots PRIVATE ${LIERO_SRC} ${LIERO_SRC}/game)
+target_link_libraries(liero_shots SDL2::SDL2 pthread)
