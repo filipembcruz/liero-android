@@ -165,6 +165,14 @@ int main(int argc, char** argv)
 	std::string tracePath = argv[5];
 	std::string ppmPrefix = argc > 6 ? argv[6] : "";
 
+	FILE* trace = std::fopen(tracePath.c_str(), "w");
+	if (!trace) { std::perror("trace"); return 1; }
+	if (!ppmPrefix.empty() && ppmPrefix[0] != '/')
+	{
+		char cwd[4096];
+		if (getcwd(cwd, sizeof(cwd))) ppmPrefix = std::string(cwd) + "/" + ppmPrefix;
+	}
+
 	// OpenLiero's FsNode only handles relative paths on POSIX, so chdir to the
 	// TC's parent directory (the Android port does the same with its data dir).
 	{
@@ -236,9 +244,6 @@ int main(int argc, char** argv)
 	Rand inputRand;
 	inputRand.seed(seed + 777);
 	bool held[7] = {};
-
-	FILE* trace = std::fopen(tracePath.c_str(), "w");
-	if (!trace) { std::perror("trace"); return 1; }
 
 	for (int f = 0; f < frames; ++f)
 	{

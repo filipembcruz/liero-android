@@ -55,6 +55,17 @@ jobs:
         run: OUT_DIR=traces/clang tests/fidelity.sh build-ref/liero_sim build-port-clang/liero_sim $PWD/game/TC/openliero
       - name: "Compare: upstream x86_64 vs port ARM64"
         run: OUT_DIR=traces/arm64 tests/fidelity.sh build-ref/liero_sim build-port-arm64/liero_sim $PWD/game/TC/openliero qemu-aarch64-static
+      - name: "Sanity: the test must catch a 1-unit physics change"
+        run: |
+          cp -r game/src mutated-src
+          sed -i 's/vel.y -= LC(JumpForce);/vel.y -= LC(JumpForce) + 1;/' mutated-src/game/worm.cpp
+          cmake -S tests/sim -B build-mut -DLIERO_SRC=$PWD/mutated-src -DSDL2_INCLUDE_DIR=/usr/include/SDL2 >/dev/null
+          cmake --build build-mut -j4 >/dev/null
+          if OUT_DIR=traces/mutated tests/fidelity.sh build-ref/liero_sim build-mut/liero_sim $PWD/game/TC/openliero; then
+            echo "ERROR: mutated jump force was NOT detected"; exit 1
+          else
+            echo "OK: mutation detected"
+          fi
       - name: Original-renderer frames (PC reference)
         run: |
           mkdir -p pc-frames

@@ -7,6 +7,7 @@ set -euo pipefail
 REF="$1"; CAND="$2"; TC="$3"; RUN="${4:-}"
 OUT="${OUT_DIR:-$(mktemp -d)}"
 mkdir -p "$OUT"
+OUT="$(cd "$OUT" && pwd)"
 fail=0; n=0
 for spec in "cpu 1 20000" "cpu 7 20000" "cpu 1234 20000" "scripted 42 12000" "scripted 99 12000" \
             "scripted 2024 12000" "rope 3 8000" "rope 77 8000"; do
