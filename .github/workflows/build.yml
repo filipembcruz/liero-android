@@ -203,3 +203,27 @@ jobs:
           [ -f "$NOTES" ] || NOTES=/dev/null
           gh release create "$GITHUB_REF_NAME" "out/liero-mobile-${GITHUB_REF_NAME}.apk" \
             --title "Liero Mobile ${GITHUB_REF_NAME}" --notes-file "$NOTES"
+
+  publish-screenshots:
+    name: Publish screenshots to branch ci-screenshots
+    if: always() && github.event_name != 'pull_request'
+    needs: [fidelity, screenshots, emulator]
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/download-artifact@v4
+        with: { path: art }
+        continue-on-error: true
+      - name: Push
+        env: { GH_TOKEN: '${{ github.token }}' }
+        run: |
+          mkdir -p site && cd site
+          git init -q -b ci-screenshots
+          cp -r ../art/screenshots-desktop desktop 2>/dev/null || true
+          cp -r ../art/screenshots-emulator emulator 2>/dev/null || true
+          mkdir -p fidelity && cp -r ../art/fidelity-traces/pc-frames fidelity/ 2>/dev/null || true
+          for f in $(find fidelity -name '*.ppm'); do python3 -c "from PIL import Image;import sys;Image.open(sys.argv[1]).resize((960,600),Image.NEAREST).save(sys.argv[1][:-4]+'.png')" $f && rm $f; done || true
+          rm -f emulator/logcat.txt.gz
+          echo "Run ${{ github.run_id }} @ ${{ github.sha }}" > README.md
+          git add -A
+          git -c user.name=ci -c user.email=ci@users.noreply.github.com commit -qm "screenshots ${{ github.sha }}"
+          git push -qf "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git" ci-screenshots
