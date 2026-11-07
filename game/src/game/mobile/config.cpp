@@ -66,6 +66,7 @@ void loadConfig()
 	c.touchOpacity = clampi(c.touchOpacity, 10, 100);
 	c.deadZone = clampi(c.deadZone, 5, 60);
 	c.fov = clampi(c.fov, 0, 2);
+	c.smooth = clampi(c.smooth, 0, 2);
 	c.loadingTime = clampi(c.loadingTime, 0, 9999);
 	c.blood = clampi(c.blood, 0, 500);
 	if (c.name.empty()) c.name = "Jogador";

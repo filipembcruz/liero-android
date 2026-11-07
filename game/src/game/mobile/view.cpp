@@ -2,6 +2,7 @@
 #include "ui.hpp"
 #include "touch.hpp"
 #include "config.hpp"
+#include "hd.hpp"
 
 #include "../game.hpp"
 #include "../worm.hpp"
@@ -69,7 +70,7 @@ void View::setup(SDL_Renderer* r, int winW, int winH)
 {
 	winW_ = winW; winH_ = winH;
 	s_ = winH / 720.0f;
-	(void)r;
+	r_ = r;
 	if (game)
 		newGame(*game);
 }
@@ -115,6 +116,8 @@ void View::newGame(Game& g)
 	vp_.reset(new Viewport(gvl::rect(0, 0, viewW_, viewH_), 0, levelW_, levelH_));
 	vp_->hud = false;
 	minimapAge_ = 1000;
+	if (r_ && hd::ready())
+		hd::newGame(r_, g);
 	SDL_Log("liero-view win=%dx%d view=%dx%d scale=%d fov=%d", winW_, winH_, viewW_, viewH_, scale_, config.fov);
 }
 
@@ -131,7 +134,13 @@ void View::update(Game& g)
 	}
 	vp_->process(g);
 	renderer_.clear();
+	bool hdl = hdOn();
+	vp_->drawLevel = vp_->drawWorms = vp_->drawSObjects = vp_->drawBonuses = !hdl;
+	vp_->hdWeapons = hdl ? hd::weaponMask(*g.common) : nullptr;
+	bool shadow = g.settings->shadow;
+	if (hdl) g.settings->shadow = false; // shadows are painted onto the level; not in HD
 	vp_->draw(g, renderer_, StateGame, false);
+	g.settings->shadow = shadow;
 
 	// Palette effects, exactly as Game::draw does for the PC renderer.
 	Common& common = *g.common;
@@ -201,11 +210,17 @@ void View::ensureIcons(SDL_Renderer* r, Common& common)
 	}
 }
 
+bool View::hdOn() const
+{
+	return config.smooth == 2 && hd::ready();
+}
+
 void View::present(SDL_Renderer* r, Game& g, bool hud)
 {
 	if (!vp_)
 		return;
-	int smooth = (config.smooth || fractional_) ? 1 : 0;
+	bool hdl = hdOn();
+	int smooth = ((config.smooth == 1) || fractional_) ? 1 : 0;
 	int tw = smooth ? viewW_ * 2 : viewW_, th = smooth ? viewH_ * 2 : viewH_;
 	if (!tex_ || texW_ != tw || texH_ != th || smoothTex_ != smooth)
 	{
@@ -219,6 +234,8 @@ void View::present(SDL_Renderer* r, Game& g, bool hud)
 	uint32_t pal32[256];
 	for (int i = 0; i < 256; ++i)
 		pal32[i] = 0xFF000000u | (pal[i].r << 16) | (pal[i].g << 8) | pal[i].b;
+	if (hdl)
+		pal32[0] = 0; // HD: index 0 (nothing drawn) is transparent, the HD layers show through
 	buf_.resize(std::size_t(viewW_) * viewH_);
 	for (int y = 0; y < viewH_; ++y)
 	{
@@ -236,7 +253,31 @@ void View::present(SDL_Renderer* r, Game& g, bool hud)
 	else
 		SDL_UpdateTexture(tex_, NULL, buf_.data(), tw * 4);
 
-	SDL_RenderCopy(r, tex_, NULL, &dst_);
+	if (hdl)
+	{
+		hd::Camera cam;
+		cam.x = (float)vp_->x; cam.y = (float)vp_->y; cam.scale = fscale_;
+		cam.ox = (float)dst_.x; cam.oy = (float)dst_.y;
+		cam.screenW = winW_; cam.screenH = winH_; cam.viewW = viewW_; cam.viewH = viewH_;
+		hd::drawBackground(r, g, cam);
+		hd::drawTerrain(r, g, cam);
+		SDL_SetTextureBlendMode(tex_, SDL_BLENDMODE_BLEND);
+		SDL_RenderCopy(r, tex_, NULL, &dst_);
+		hd::drawObjects(r, g, cam);
+		// fade (pause / round end) as a black overlay, like the palette fade
+		int fade = renderer_.fadeValue;
+		if (fade < 32 && !suppressFade)
+		{
+			SDL_SetRenderDrawBlendMode(r, SDL_BLENDMODE_BLEND);
+			SDL_SetRenderDrawColor(r, 0, 0, 0, (Uint8)(255 * (32 - std::max(0, fade)) / 32));
+			SDL_RenderFillRect(r, NULL);
+		}
+	}
+	else
+	{
+		SDL_SetTextureBlendMode(tex_, SDL_BLENDMODE_NONE);
+		SDL_RenderCopy(r, tex_, NULL, &dst_);
+	}
 	if (hud)
 		drawHud(r, g);
 }
@@ -419,7 +460,16 @@ void View::drawHud(SDL_Renderer* r, Game& g)
 		}
 		if (!ww.type) continue;
 		int widx = int(ww.type - &common.weapons[0]);
-		if (widx >= 0 && widx < (int)weaponIcons_.size() && weaponIcons_[widx])
+		int iw = 0, ih = 0;
+		SDL_Texture* hdIcon = hdOn() ? hd::weaponIcon(common, widx, &iw, &ih) : nullptr;
+		if (hdIcon)
+		{
+			float box = std::min(sr.w * 0.8f, sr.h * 0.55f);
+			float k = box / std::max(iw, ih);
+			SDL_FRect ir = { sr.x + (sr.w - iw * k) / 2, sr.y + sr.h * 0.08f + (box - ih * k) / 2, iw * k, ih * k };
+			SDL_RenderCopyF(r, hdIcon, NULL, &ir);
+		}
+		else if (widx >= 0 && widx < (int)weaponIcons_.size() && weaponIcons_[widx])
 		{
 			float isz = std::min(sr.w * 0.6f, sr.h * 0.5f);
 			SDL_FRect ir = { sr.x + (sr.w - isz) / 2, sr.y + sr.h * 0.1f, isz, isz };

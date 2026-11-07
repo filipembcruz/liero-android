@@ -73,11 +73,11 @@ public class SettingsActivity extends Activity {
 
         LinearLayout vis = ui.card("Visual", "Campo de visão: Amplo e Máximo mostram mais do mapa e preenchem a tela.");
         ui.segmented(vis, new String[] { "Perto", "Amplo", "Máximo" }, p.fov(), i -> p.edit().putInt("fov", i).apply());
-        TextView sm = ui.text("Estilo dos pixels", 15, Ui.TEXT);
+        TextView sm = ui.text("Estilo visual", 15, Ui.TEXT);
         sm.setPadding(0, ui.dp(8), 0, ui.dp(6));
         vis.addView(sm);
-        ui.segmented(vis, new String[] { "Pixel clássico", "Suave" }, p.smooth() ? 1 : 0,
-            i -> p.edit().putBoolean("smooth", i == 1).apply());
+        ui.segmented(vis, new String[] { "Clássico", "Suave", "HD" }, p.visual(),
+            i -> p.edit().putInt("smooth", i).apply());
 
         ui.card("Durante a partida",
             "Toque em Pausa (ou Voltar) para abrir o menu com Configurações: controles, tempo de carregamento, "

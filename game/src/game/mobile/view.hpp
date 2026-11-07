@@ -46,6 +46,7 @@ struct View
 	}
 	void ensureIcons(SDL_Renderer* r, Common& common);
 	int width() const { return winW_; }
+	bool suppressFade = false; // menus draw the frozen match without the fade
 	int height() const { return winH_; }
 
 private:
@@ -53,6 +54,8 @@ private:
 	void drawMinimap(SDL_Renderer* r, Game& game, SDL_FRect area);
 	void drawOffscreen(SDL_Renderer* r, Game& game);
 
+	bool hdOn() const;
+	SDL_Renderer* r_ = nullptr;
 	int winW_ = 0, winH_ = 0;
 	int viewW_ = 320, viewH_ = 200, scale_ = 1;
 	bool fractional_ = false;

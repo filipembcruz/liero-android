@@ -4,6 +4,7 @@
 #include "touch.hpp"
 #include "config.hpp"
 #include "platform.hpp"
+#include "hd.hpp"
 
 #include "../gfx.hpp"
 #include "../game.hpp"
@@ -163,7 +164,9 @@ void background(Game* game, float dim, bool hud = true)
 	if (game && view.game == game)
 	{
 		view.unfade(*game);
+		view.suppressFade = true;
 		view.present(F.r, *game, hud && game->cycles > 0);
+		view.suppressFade = false;
 	}
 	SDL_SetRenderDrawBlendMode(F.r, SDL_BLENDMODE_BLEND);
 	ui::roundRectV(F.r, { -10, -10, (float)F.w + 20, (float)F.h + 20 }, 1, ui::rgba(10, 6, 30, dim), ui::rgba(30, 10, 50, dim));
@@ -209,6 +212,25 @@ int stepper(SDL_FRect row, std::string const& label, std::string const& value, s
 }
 
 std::string pct(int v) { return std::to_string(v) + "%"; }
+
+// Weapon icon fitted into a box: HD sprite if the HD visual is on, else the original pixels.
+void drawWeaponIcon(Common& common, int w, SDL_FRect box)
+{
+	int iw = 0, ih = 0;
+	SDL_Texture* t = config.smooth == 2 ? hd::weaponIcon(common, w, &iw, &ih) : nullptr;
+	if (t)
+	{
+		float k = std::min(box.w / iw, box.h / ih);
+		SDL_FRect d = { box.x + (box.w - iw * k) / 2, box.y + (box.h - ih * k) / 2, iw * k, ih * k };
+		SDL_RenderCopyF(F.r, t, NULL, &d);
+	}
+	else if (SDL_Texture* p = view.weaponIcon(F.r, common, w))
+	{
+		float sz = std::min(box.w, box.h);
+		SDL_FRect d = { box.x + (box.w - sz) / 2, box.y + (box.h - sz) / 2, sz, sz };
+		SDL_RenderCopyF(F.r, p, NULL, &d);
+	}
+}
 
 void applyLive()
 {
@@ -359,7 +381,8 @@ void settingsScreen(Game* game)
 		{
 			static const char* fv[3] = { "Perto", "Amplo", "Máximo" };
 			if ((d = stepper(row(), "Campo de visão", fv[config.fov], "Amplo/Máximo mostram mais do mapa"))) { config.fov = std::max(0, std::min(2, config.fov + d)); }
-			if ((d = stepper(row(), "Visual", config.smooth ? "Suave" : "Pixel clássico", "Suave arredonda as bordas dos sprites"))) { config.smooth = d > 0 ? 1 : 0; }
+			static const char* vn[3] = { "Clássico", "Suave", "HD" };
+			if ((d = stepper(row(), "Visual", vn[std::max(0, std::min(2, config.smooth))], "HD: vermes, armas, explosões, terreno e fundo novos"))) { config.smooth = std::max(0, std::min(2, config.smooth + d)); if (game) view.newGame(*game); }
 			if ((d = stepper(row(), "Minimapa", config.minimap ? "Ligado" : "Desligado"))) { config.minimap = d > 0 ? 1 : 0; }
 		}
 		if (config.fov != prevFov && game)
@@ -495,12 +518,7 @@ bool weaponPicker(Game& game)
 			ui::roundRectV(F.r, c, 10 * s, chosen ? ui::rgba(90, 70, 30, 0.95f) : ui::rgba(40, 52, 90, en ? 0.92f : 0.4f),
 				chosen ? ui::rgba(70, 50, 20, 0.95f) : ui::rgba(26, 34, 64, en ? 0.92f : 0.4f));
 			ui::roundRectOutline(F.r, c, 10 * s, (foc ? 3.5f : 2) * s, foc ? ui::rgba(255, 255, 255) : chosen ? ui::rgba(255, 200, 60) : ui::rgba(100, 130, 200, 0.7f));
-			if (SDL_Texture* t = view.weaponIcon(F.r, common, w))
-			{
-				float isz = c.h * 0.5f;
-				SDL_FRect ir = { c.x + 10 * s, c.y + (c.h - isz) / 2, isz, isz };
-				SDL_RenderCopyF(F.r, t, NULL, &ir);
-			}
+			drawWeaponIcon(common, w, { c.x + 8 * s, c.y + c.h * 0.2f, c.h * 0.6f, c.h * 0.6f });
 			std::string nm = common.weapons[w].name;
 			float px = std::min(19 * s, (c.w - c.h * 0.5f - 26 * s) / std::max(1.0f, ui::textWidth(nm, 1.0f)));
 			ui::text(F.r, nm, c.x + c.h * 0.5f + 18 * s, c.y + c.h / 2, px, en ? ui::rgba(255, 255, 255) : ui::rgba(150, 150, 170), ui::Left);
@@ -526,12 +544,7 @@ bool weaponPicker(Game& game)
 			ui::roundRectV(F.r, c, 12 * s, sel ? ui::rgba(255, 214, 70) : ui::rgba(50, 64, 100), sel ? ui::rgba(240, 160, 20) : ui::rgba(30, 40, 70));
 			ui::roundRectOutline(F.r, c, 12 * s, 3 * s, sel ? ui::rgba(255, 240, 170) : ui::rgba(110, 140, 200));
 			ui::text(F.r, std::to_string(j + 1), c.x + 16 * s, c.y + 20 * s, 20 * s, sel ? ui::rgba(60, 30, 10) : ui::rgba(170, 190, 240), ui::Left, false);
-			if (SDL_Texture* t = view.weaponIcon(F.r, common, pick[j]))
-			{
-				float isz = c.h * 0.45f;
-				SDL_FRect ir = { c.x + (c.w - isz) / 2, c.y + 14 * s, isz, isz };
-				SDL_RenderCopyF(F.r, t, NULL, &ir);
-			}
+			drawWeaponIcon(common, pick[j], { c.x + (c.w - c.h * 0.5f) / 2, c.y + 12 * s, c.h * 0.5f, c.h * 0.45f });
 			std::string nm = common.weapons[pick[j]].name;
 			float px = std::min(19 * s, (c.w - 12 * s) / std::max(1.0f, ui::textWidth(nm, 1.0f)));
 			ui::text(F.r, nm, c.x + c.w / 2, c.y + c.h * 0.8f, px, sel ? ui::rgba(60, 30, 10) : ui::rgba(255, 255, 255), ui::Center, !sel);

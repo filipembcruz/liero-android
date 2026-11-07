@@ -210,7 +210,8 @@ void Viewport::draw(Game& game, Renderer& renderer, GameState state, bool isRepl
 
 		fixedvec offs = rect.ul() - renderPos;
 
-		blitImageNoKeyColour(renderer.bmp, &game.level.data[0], offs.x, offs.y, game.level.width, game.level.height);
+		if (drawLevel)
+			blitImageNoKeyColour(renderer.bmp, &game.level.data[0], offs.x, offs.y, game.level.width, game.level.height);
 
 		if (game.settings->gameMode == Settings::GMHoldazone)
 		{
@@ -294,7 +295,7 @@ void Viewport::draw(Game& game, Renderer& renderer, GameState state, bool isRepl
 		}
 
 		auto br = game.bonuses.all();
-		for (Bonus* i; (i = br.next()); )
+		for (Bonus* i; drawBonuses && (i = br.next()); )
 		{
 			if(i->timer > LC(BonusFlickerTime) || (game.cycles & 3) == 0)
 			{
@@ -333,7 +334,7 @@ void Viewport::draw(Game& game, Renderer& renderer, GameState state, bool isRepl
 		}
 
 		auto sr = game.sobjects.all();
-		for (SObject* i; (i = sr.next()); )
+		for (SObject* i; drawSObjects && (i = sr.next()); )
 		{
 			SObjectType const& t = common.sobjectTypes[i->id];
 			int frame = i->curFrame + t.startFrame;
@@ -361,6 +362,9 @@ void Viewport::draw(Game& game, Renderer& renderer, GameState state, bool isRepl
 		for (WObject* i; (i = wr.next()); )
 		{
 			Weapon const& w = *i->type;
+
+			if (hdWeapons && hdWeapons[i->type - &common.weapons[0]])
+				continue;
 
 			if(w.startFrame > -1)
 			{
@@ -546,7 +550,7 @@ void Viewport::draw(Game& game, Renderer& renderer, GameState state, bool isRepl
 
 				}
 
-				if(w.weapons[w.currentWeapon].type->fireCone > 0 && w.fireCone > 0)
+				if(drawWorms && w.weapons[w.currentWeapon].type->fireCone > 0 && w.fireCone > 0)
 				{
 					/* TODO
 					//NOTE! Check fctab so it's correct
@@ -561,9 +565,12 @@ void Viewport::draw(Game& game, Renderer& renderer, GameState state, bool isRepl
 				}
 
 
+				if (drawWorms)
+				{
 				blitImage(renderer.bmp, common.wormSpriteObj(w.currentFrame, w.direction, w.index), tempX, tempY);
 				if(game.settings->shadow)
 					blitShadowImage(common, renderer.bmp, common.wormSprite(w.currentFrame, w.direction, w.index), tempX - 3, tempY + 3, 16, 16);
+				}
 			}
 
 			if (w.ai)

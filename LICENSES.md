@@ -9,6 +9,7 @@
 | SDL 2.30 | libsdl.org | zlib | Sim |
 | miniz, fdlibm, stb_vorbis (embutidos no código) | — | MIT/domínio público | Sim |
 | Fonte Poppins Bold (`game/ui/font.bin`, atlas gerado por `tools/gen-font.py`) | Indian Type Foundry | SIL Open Font License 1.1 | Sim |
+| Sprites HD, fundo e texturas (`art/source`, empacotados em `game/ui/hd.bin` por `tools/pack-hd.py`) | fornecidos pelo dono do projeto | — | Sim |
 | Arte do menu/carregamento (`android/.../drawable-nodpi`) | fornecida pelo dono do projeto | — | Sim |
 
 Não sou advogado; este é um resumo dos avisos publicados.

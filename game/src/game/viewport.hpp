@@ -39,6 +39,9 @@ struct Viewport
 	gvl::rect rect;
 	Rand rand;
 	bool hud = true; // mobile: false = draw only the world (HD HUD is drawn natively)
+	// Mobile HD layer: parts the HD renderer draws itself (rendering only).
+	bool drawLevel = true, drawWorms = true, drawSObjects = true, drawBonuses = true;
+	bool const* hdWeapons = nullptr; // per weapon index: true = drawn by the HD layer
 
 
 	void setCenter(int x, int y)

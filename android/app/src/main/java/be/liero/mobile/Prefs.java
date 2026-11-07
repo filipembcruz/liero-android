@@ -54,7 +54,7 @@ final class Prefs {
     boolean lefty() { return i("lefty", 0) != 0; }
     int loadingTime() { return i("loadingTime", 100); }
     int fov() { return i("fov", 1); }
-    boolean smooth() { return i("smooth", 0) != 0; }
+    int visual() { return Math.max(0, Math.min(2, i("smooth", 2))); }
 
     final class Editor {
         Editor putString(String k, String v) { map.put(k, v.replace('\n', ' ')); return this; }

@@ -23,7 +23,7 @@ struct Config
 	int deadZone = 22;    // % of stick radius
 	int vibrate = 1;
 	int fov = 1;          // 0 close, 1 wide, 2 widest
-	int smooth = 0;       // 0 crisp pixels, 1 smoothed (Scale2x + bilinear)
+	int smooth = 2;       // visual: 0 classic pixels, 1 smoothed (Scale2x + bilinear), 2 HD sprites/terrain
 	int loadingTime = 100; // % (original "LOADING TIMES")
 	int blood = 100;       // % (original "AMOUNT OF BLOOD")
 	int minimap = 1;

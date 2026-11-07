@@ -5,6 +5,7 @@
 #include "mobile/view.hpp"
 #include "mobile/ui.hpp"
 #include "mobile/menu.hpp"
+#include "mobile/hd.hpp"
 #include "mobile/config.hpp"
 #include "controller/localController.hpp"
 #else
@@ -505,6 +506,8 @@ void Gfx::onWindowResize(Uint32 windowID)
 			mobile::input.layout(w, h, gr);
 			if (!mobile::ui::ready())
 				mobile::ui::init(sdlRenderer, "ui/font.bin");
+			if (!mobile::hd::ready())
+				mobile::hd::load(sdlRenderer, "ui/hd.bin");
 			mobile::view.setup(sdlRenderer, w, h);
 		}
 #else
