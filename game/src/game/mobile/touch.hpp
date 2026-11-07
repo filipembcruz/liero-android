@@ -100,6 +100,7 @@ private:
 	float stickX = 0, stickY = 0, stickR = 0;
 	SDL_FingerID stickFinger = -1;
 	float knobDX = 0, knobDY = 0;
+	float originX = 0, originY = 0; // stick origin for the current touch (floating)
 	bool stickDir[4] = {}; // up, down, left, right
 
 	static const int MaxButtons = 8;

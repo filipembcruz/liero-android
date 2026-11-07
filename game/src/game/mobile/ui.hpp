@@ -22,6 +22,9 @@ bool init(SDL_Renderer* r, char const* fontPath);
 bool ready();
 
 SDL_Color rgba(int r, int g, int b, float a = 1.0f);
+// Multiplies the alpha of everything drawn through rgba()/text (HUD fading).
+void setAlpha(float a);
+float alpha();
 
 // Text (UTF-8). px = cap-ish height in screen pixels (font em size).
 float textWidth(std::string const& s, float px);

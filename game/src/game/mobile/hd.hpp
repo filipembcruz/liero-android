@@ -36,6 +36,8 @@ void drawObjects(SDL_Renderer* r, Game& game, Camera const& cam);
 
 // Per weapon index: true if the HD layer draws its projectile.
 bool const* weaponMask(Common& common);
+// Any packed sprite (e.g. "btn_fire"), or nullptr.
+SDL_Texture* sprite(char const* name, int* w = nullptr, int* h = nullptr);
 // HD icon for a weapon (gun or projectile), or nullptr.
 SDL_Texture* weaponIcon(Common& common, int weaponIndex, int* w = nullptr, int* h = nullptr);
 

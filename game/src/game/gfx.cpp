@@ -1003,6 +1003,16 @@ void Gfx::flip()
 	static unsigned int const delay = 14u;
 
 	uint32_t wantedTime = lastFrame + delay;
+#ifdef LIERO_MOBILE
+	{
+		// After time spent outside this loop (native menus, app in background)
+		// lastFrame is stale; without this the game would run unthrottled
+		// ("fast forward") until it caught up with the wall clock.
+		uint32_t nowCheck = SDL_GetTicks();
+		if (nowCheck > wantedTime + 100)
+			wantedTime = nowCheck;
+	}
+#endif
 
 	while(true)
 	{

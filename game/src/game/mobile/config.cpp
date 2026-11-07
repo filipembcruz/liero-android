@@ -26,6 +26,8 @@ std::vector<Field> fields()
 		{ "deadZone", &c.deadZone, nullptr }, { "vibrate", &c.vibrate, nullptr }, { "fov", &c.fov, nullptr },
 		{ "smooth", &c.smooth, nullptr }, { "loadingTime", &c.loadingTime, nullptr },
 		{ "blood", &c.blood, nullptr }, { "minimap", &c.minimap, nullptr }, { "digButton", &c.digButton, nullptr },
+		{ "touchShow", &c.touchShow, nullptr }, { "hudOpacity", &c.hudOpacity, nullptr },
+		{ "hudAutoFade", &c.hudAutoFade, nullptr }, { "marker", &c.marker, nullptr },
 	};
 	static const char* padKeys[Config::PadCount] = { "padFire", "padJump", "padRope", "padChange", "padNext", "padPrev", "padDig", "padPause" };
 	for (int i = 0; i < Config::PadCount; ++i)
@@ -67,6 +69,8 @@ void loadConfig()
 	c.deadZone = clampi(c.deadZone, 5, 60);
 	c.fov = clampi(c.fov, 0, 2);
 	c.smooth = clampi(c.smooth, 0, 2);
+	c.touchShow = clampi(c.touchShow, 0, 2);
+	c.hudOpacity = clampi(c.hudOpacity, 20, 100);
 	c.loadingTime = clampi(c.loadingTime, 0, 9999);
 	c.blood = clampi(c.blood, 0, 500);
 	if (c.name.empty()) c.name = "Jogador";

@@ -62,10 +62,12 @@ void Viewport::process(Game& game)
 		y += rand(realShake * 2) - realShake;
 	}
 
-	if(x < 0) x = 0;
-	if(y < 0) y = 0;
-	if(x > maxX) x = maxX;
-	if(y > maxY) y = maxY;
+	// padX/padY: mobile camera may look slightly past the level border so your
+	// worm isn't stuck under the on-screen controls (0 = original behaviour).
+	if(x < -padX) x = -padX;
+	if(y < -padY) y = -padY;
+	if(x > maxX + padX) x = maxX + padX;
+	if(y > maxY + padY) y = maxY + padY;
 
 	/*
 	if(worm->health <= 0)

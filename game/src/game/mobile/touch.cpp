@@ -2,6 +2,7 @@
 #include "ui.hpp"
 #include "view.hpp"
 #include "config.hpp"
+#include "hd.hpp"
 
 #include "../gfx.hpp"
 #include "../keys.hpp"
@@ -284,6 +285,7 @@ bool Input::handleEvent(SDL_Event const& ev, Controller* controller)
 			usingPad = false; // touching the screen brings the controls back
 			cfg.visible = true;
 		}
+		bool hiddenControls = config.touchShow == 2 && mode_ == Mode::Game;
 		float x = ev.tfinger.x * w_, y = ev.tfinger.y * h_;
 		SDL_FingerID id = ev.tfinger.fingerId;
 
@@ -319,6 +321,8 @@ bool Input::handleEvent(SDL_Event const& ev, Controller* controller)
 						}
 				}
 			}
+			if (hiddenControls)
+				return false; // on-screen controls switched off (external gamepad)
 			// Buttons (generous hit radius), nearest wins.
 			int best = -1; float bestD = 1e9f;
 			for (int i = 0; i < buttonCount; ++i)
@@ -341,7 +345,14 @@ bool Input::handleEvent(SDL_Event const& ev, Controller* controller)
 			// if the touch starts away from the drawn stick).
 			bool stickSide = cfg.leftHanded ? (x > w_ * 0.5f) : (x < w_ * 0.5f);
 			if (stickFinger == -1 && stickSide)
+			{
 				stickFinger = id;
+				// Floating stick: a touch outside the drawn stick becomes the
+				// centre, so sliding from there steers in every direction.
+				float ddx = x - stickX, ddy = y - stickY;
+				if (ddx * ddx + ddy * ddy <= stickR * stickR * 1.1f) { originX = stickX; originY = stickY; }
+				else { originX = x; originY = y; }
+			}
 			else
 				return false;
 		}
@@ -379,9 +390,17 @@ bool Input::handleEvent(SDL_Event const& ev, Controller* controller)
 			}
 			else
 			{
-				float dx = x - stickX, dy = y - stickY;
+				float dx = x - originX, dy = y - originY;
 				float len = std::sqrt(dx * dx + dy * dy);
 				float maxLen = stickR * 0.75f;
+				// drag the origin along if the finger goes far past the rim
+				if (len > stickR * 1.25f)
+				{
+					float k = (len - stickR * 1.25f) / len;
+					originX += dx * k; originY += dy * k;
+					dx = x - originX; dy = y - originY;
+					len = std::sqrt(dx * dx + dy * dy);
+				}
 				if (len > maxLen) { knobDX = dx / len * maxLen; knobDY = dy / len * maxLen; }
 				else { knobDX = dx; knobDY = dy; }
 				float dead = stickR * (mode_ == Mode::Menu ? std::max(0.35f, cfg.deadZone) : cfg.deadZone);
@@ -441,12 +460,12 @@ bool Input::handleEvent(SDL_Event const& ev, Controller* controller)
 			}
 			default: return false;
 			}
-			if (std::abs(v) > th && !usingPad) { usingPad = true; cfg.visible = false; }
+			if (std::abs(v) > th && !usingPad) { usingPad = true; cfg.visible = config.touchShow == 1; }
 		}
 		else
 		{
 			down = ev.type == SDL_CONTROLLERBUTTONDOWN;
-			if (down && !usingPad) { usingPad = true; cfg.visible = false; }
+			if (down && !usingPad) { usingPad = true; cfg.visible = config.touchShow == 1; }
 			switch (ev.cbutton.button)
 			{
 			case SDL_CONTROLLER_BUTTON_DPAD_UP: padDir[0] = down; break;
@@ -486,10 +505,16 @@ void Input::draw(SDL_Renderer* r)
 {
 	if (!cfg.visible || w_ <= 0)
 		return;
+	if (config.touchShow == 2 && mode_ == Mode::Game)
+		return;
+	if (config.touchShow == 1)
+		cfg.visible = true;
 	SDL_SetRenderDrawBlendMode(r, SDL_BLENDMODE_BLEND);
 	float a = cfg.opacity;
 
-	// Stick (metal ring + knob, like the reference art)
+	// Stick (metal ring + knob); while touched it sits where the finger started
+	float stickX = this->stickX, stickY = this->stickY;
+	if (stickFinger != -1) { stickX = originX; stickY = originY; }
 	ui::fillCircle(r, stickX, stickY, stickR, ui::rgba(14, 16, 30, a * 0.6f));
 	ui::ring(r, stickX, stickY, stickR, std::max(4.0f, stickR * 0.09f), ui::rgba(120, 125, 150, a * 0.9f));
 	ui::ring(r, stickX, stickY, stickR * 0.93f, std::max(2.0f, stickR * 0.03f), ui::rgba(200, 205, 225, a * 0.5f));
@@ -508,7 +533,37 @@ void Input::draw(SDL_Renderer* r)
 	for (int i = 0; i < buttonCount; ++i)
 	{
 		Button const& b = buttons[i];
-		ui::actionButton(r, b.x, b.y, b.r, ui::rgba(b.cr, b.cg, b.cb), b.icon, b.down, a);
+		const char* sprName = nullptr;
+		switch (b.in)
+		{
+		case VFire: sprName = "btn_fire"; break;
+		case VJump: sprName = "btn_jump"; break;
+		case VRope: sprName = "btn_rope"; break;
+		case VSwapTap: sprName = "btn_swap"; break;
+		case VDig: sprName = "btn_dig"; break;
+		default: break;
+		}
+		int tw = 0, th = 0;
+		SDL_Texture* t = sprName ? hd::sprite(sprName, &tw, &th) : nullptr;
+		float a = this->cfg.opacity;
+		if (config.hudAutoFade && mode_ == Mode::Game && view.active && view.playerOnScreen && !b.down)
+		{
+			float dx = view.playerX - b.x, dy = view.playerY - b.y, m = b.r + 50 * h_ / 720.0f;
+			if (dx * dx + dy * dy < m * m) a *= 0.3f; // see your worm through the button
+		}
+		if (t)
+		{
+			float sz = b.r * 2.1f * (b.down ? 0.92f : 1.0f);
+			SDL_FRect d = { b.x - sz / 2, b.y - sz / 2, sz, sz };
+			SDL_SetTextureAlphaMod(t, (Uint8)(std::min(1.0f, a * (b.down ? 1.25f : 1.0f)) * 255));
+			Uint8 cm = b.down ? 255 : 225;
+			SDL_SetTextureColorMod(t, cm, cm, cm);
+			SDL_RenderCopyF(r, t, NULL, &d);
+			SDL_SetTextureColorMod(t, 255, 255, 255);
+			SDL_SetTextureAlphaMod(t, 255);
+		}
+		else
+			ui::actionButton(r, b.x, b.y, b.r, ui::rgba(b.cr, b.cg, b.cb), b.icon, b.down, a);
 	}
 	// Pause is drawn by the HUD in Game mode.
 }

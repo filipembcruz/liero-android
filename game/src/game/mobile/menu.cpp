@@ -324,7 +324,8 @@ void settingsScreen(Game* game)
 			if ((d = stepper(row(), "Zona morta do direcional", pct(config.deadZone), "Menor = responde com toque mais curto"))) { config.deadZone = std::max(5, std::min(60, config.deadZone + d * 5)); applyLive(); }
 			if ((d = stepper(row(), "Lado do direcional", config.lefty ? "Direita" : "Esquerda"))) { config.lefty = d > 0 ? 1 : 0; applyLive(); }
 			if ((d = stepper(row(), "Botão Cavar", config.digButton ? "Ligado" : "Desligado", "Cava túneis (= esquerda + direita juntos)"))) { config.digButton = d > 0 ? 1 : 0; applyLive(); }
-			if ((d = stepper(row(), "Vibração", config.vibrate ? "Ligada" : "Desligada"))) { config.vibrate = d > 0 ? 1 : 0; applyLive(); }
+			static const char* ts[3] = { "Automático", "Sempre", "Ocultos" };
+			if ((d = stepper(row(), "Controles na tela", ts[config.touchShow], "Automático: somem quando você usa um controle externo"))) { config.touchShow = std::max(0, std::min(2, config.touchShow + d)); input.cfg.visible = config.touchShow != 2; applyLive(); }
 		}
 		else if (tab == 1)
 		{
@@ -358,6 +359,8 @@ void settingsScreen(Game* game)
 				}
 			}
 			y += 4 * (rh + gap);
+			if ((d = stepper({ pnl.x + 28 * s, y, pnl.w - 56 * s, rh }, "Vibração ao tocar", config.vibrate ? "Ligada" : "Desligada"))) { config.vibrate = d > 0 ? 1 : 0; applyLive(); }
+			y += rh + gap;
 			SDL_FRect rs = { pnl.x + 28 * s, y + 4 * s, 330 * s, 56 * s };
 			if (button(rs, "PADRÃO", false, ui::IRestart))
 			{
@@ -384,6 +387,9 @@ void settingsScreen(Game* game)
 			static const char* vn[3] = { "Clássico", "Suave", "HD" };
 			if ((d = stepper(row(), "Visual", vn[std::max(0, std::min(2, config.smooth))], "HD: vermes, armas, explosões, terreno e fundo novos"))) { config.smooth = std::max(0, std::min(2, config.smooth + d)); if (game) view.newGame(*game); }
 			if ((d = stepper(row(), "Minimapa", config.minimap ? "Ligado" : "Desligado"))) { config.minimap = d > 0 ? 1 : 0; }
+			if ((d = stepper(row(), "Opacidade do HUD", pct(config.hudOpacity), "Placar, minimapa e barra de armas"))) { config.hudOpacity = std::max(20, std::min(100, config.hudOpacity + d * 10)); }
+			if ((d = stepper(row(), "HUD transparente sobre você", config.hudAutoFade ? "Ligado" : "Desligado", "O painel some quando o seu verme passa por baixo"))) { config.hudAutoFade = d > 0 ? 1 : 0; }
+			if ((d = stepper(row(), "Seta sobre o seu verme", config.marker ? "Ligada" : "Desligada"))) { config.marker = d > 0 ? 1 : 0; }
 		}
 		if (config.fov != prevFov && game)
 		{

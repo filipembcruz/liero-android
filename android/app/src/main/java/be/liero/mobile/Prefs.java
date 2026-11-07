@@ -54,6 +54,7 @@ final class Prefs {
     boolean lefty() { return i("lefty", 0) != 0; }
     int loadingTime() { return i("loadingTime", 100); }
     int fov() { return i("fov", 1); }
+    int touchShow() { return Math.max(0, Math.min(2, i("touchShow", 0))); }
     int visual() { return Math.max(0, Math.min(2, i("smooth", 2))); }
 
     final class Editor {

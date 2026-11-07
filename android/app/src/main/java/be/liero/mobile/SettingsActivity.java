@@ -53,6 +53,11 @@ public class SettingsActivity extends Activity {
             "Direcional (andar/mirar), Tiro, Pulo, Corda ninja, Trocar arma e Pausa. Controle Bluetooth também funciona.");
         ui.slider(touch, "Tamanho", 60, 160, p.touchScale(), "%", v -> p.edit().putInt("touchScale", v).apply());
         ui.slider(touch, "Opacidade", 15, 100, p.touchOpacity(), "%", v -> p.edit().putInt("touchOpacity", v).apply());
+        TextView showTitle = ui.text("Controles na tela", 15, Ui.TEXT);
+        showTitle.setPadding(0, ui.dp(8), 0, ui.dp(6));
+        touch.addView(showTitle);
+        ui.segmented(touch, new String[] { "Automático", "Sempre", "Ocultos" }, p.touchShow(),
+            i -> p.edit().putInt("touchShow", i).apply());
         TextView handTitle = ui.text("Lado do direcional", 15, Ui.TEXT);
         handTitle.setPadding(0, ui.dp(8), 0, ui.dp(6));
         touch.addView(handTitle);

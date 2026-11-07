@@ -377,6 +377,8 @@ void drawBackground(SDL_Renderer* r, Game& g, Camera const& cam)
 	float bw = bg->w * k, bh = bg->h * k;
 	float px = levelW > cam.viewW ? cam.x / (levelW - cam.viewW) : 0.5f;
 	float py = levelH > cam.viewH ? cam.y / (levelH - cam.viewH) : 0.5f;
+	px = std::max(0.0f, std::min(1.0f, px));
+	py = std::max(0.0f, std::min(1.0f, py));
 	SDL_FRect d = { -(bw - cam.screenW) * px, -(bh - cam.screenH) * py, bw, bh };
 	SDL_RenderCopyF(r, bg->tex, NULL, &d);
 }
@@ -385,9 +387,22 @@ void drawTerrain(SDL_Renderer* r, Game& g, Camera const& cam)
 {
 	if (!terrainTex || curGame != &g) return;
 	updateTerrain(g);
-	SDL_Rect src = { (int)(cam.x * T), (int)(cam.y * T), (int)(cam.viewW * T), (int)(cam.viewH * T) };
-	SDL_FRect dst = { cam.ox, cam.oy, cam.viewW * cam.scale, cam.viewH * cam.scale };
+	// visible part of the level (the camera may look past the border)
+	float x0 = std::max(0.0f, cam.x), y0 = std::max(0.0f, cam.y);
+	float x1 = std::min((float)g.level.width, cam.x + cam.viewW), y1 = std::min((float)g.level.height, cam.y + cam.viewH);
+	if (x1 <= x0 || y1 <= y0) return;
+	SDL_Rect src = { (int)(x0 * T), (int)(y0 * T), (int)((x1 - x0) * T), (int)((y1 - y0) * T) };
+	SDL_FRect dst = { cam.ox + (x0 - cam.x) * cam.scale, cam.oy + (y0 - cam.y) * cam.scale, (x1 - x0) * cam.scale, (y1 - y0) * cam.scale };
 	SDL_RenderCopyF(r, terrainTex, &src, &dst);
+	// rocky frame around the level border
+	SDL_SetRenderDrawBlendMode(r, SDL_BLENDMODE_BLEND);
+	SDL_SetRenderDrawColor(r, 12, 8, 24, 200);
+	float t = 3 * cam.scale;
+	SDL_FRect edges[4] = {
+		{ dst.x - t, dst.y - t, dst.w + 2 * t, t }, { dst.x - t, dst.y + dst.h, dst.w + 2 * t, t },
+		{ dst.x - t, dst.y, t, dst.h }, { dst.x + dst.w, dst.y, t, dst.h } };
+	if (cam.x < 0 || cam.y < 0 || cam.x + cam.viewW > g.level.width || cam.y + cam.viewH > g.level.height)
+		SDL_RenderFillRectsF(r, edges, 4);
 }
 
 void drawObjects(SDL_Renderer* r, Game& g, Camera const& cam)
@@ -519,6 +534,15 @@ void drawObjects(SDL_Renderer* r, Game& g, Camera const& cam)
 			drawSpr(r, s->tex, s->w, s->h, sx(o->x + 8.0f), sy(o->y + 8.0f), size * S, 0, SDL_FLIP_NONE, a);
 		}
 	}
+}
+
+SDL_Texture* sprite(char const* name, int* w, int* h)
+{
+	Spr* s = get(name);
+	if (!s) return nullptr;
+	if (w) *w = s->w;
+	if (h) *h = s->h;
+	return s->tex;
 }
 
 bool const* weaponMask(Common& common)

@@ -28,6 +28,10 @@ struct Config
 	int blood = 100;       // % (original "AMOUNT OF BLOOD")
 	int minimap = 1;
 	int digButton = 1;
+	int touchShow = 0;   // 0 auto (hide while a gamepad is used), 1 always, 2 hidden
+	int hudOpacity = 100; // %
+	int hudAutoFade = 1;  // fade HUD panels that cover your worm
+	int marker = 1;       // arrow above your worm
 
 	// Gamepad mapping (direction keys are fixed: D-pad / left stick).
 	// Values: SDL_GameControllerButton, or 100 = left trigger, 101 = right trigger.

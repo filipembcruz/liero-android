@@ -19,12 +19,15 @@ OUT = os.path.join(ROOT, "game", "ui", "hd.bin")
 
 
 def key_mask(im, shadows=False):
-    """Returns RGBA with magenta (and optionally magenta-tinted shadows) removed."""
+    """Returns RGBA with magenta (and optionally magenta-tinted shadows) removed.
+    Only pixels touching the removed background are de-fringed, so purple/pink
+    artwork keeps its colours."""
     im = im.convert("RGB")
     W, H = im.size
     src = im.load()
     out = Image.new("RGBA", (W, H))
     dst = out.load()
+    keyed = bytearray(W * H)
     for y in range(H):
         for x in range(W):
             r, g, b = src[x, y]
@@ -32,16 +35,23 @@ def key_mask(im, shadows=False):
             pure = r > 190 and b > 190 and g < 90
             shadow = shadows and abs(r - b) < 45 and mn > 40 and g < mn * 0.45
             if pure or shadow:
+                keyed[y * W + x] = 1
                 dst[x, y] = (0, 0, 0, 0)
+            else:
+                dst[x, y] = (r, g, b, 255)
+    for y in range(H):
+        for x in range(W):
+            if keyed[y * W + x]:
                 continue
-            a = 255
-            # de-fringe anti-aliased edge pixels blended with magenta
-            m = mn - g
+            edge = any(0 <= nx < W and 0 <= ny < H and keyed[ny * W + nx]
+                       for nx, ny in ((x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)))
+            if not edge:
+                continue
+            r, g, b, a = dst[x, y]
+            m = min(r, b) - g
             if m > 40 and abs(r - b) < 60:
                 k = min(1.0, m / 200.0)
-                a = int(255 * (1 - k * 0.85))
-                r = max(0, int(r - m * 0.8)); b = max(0, int(b - m * 0.8))
-            dst[x, y] = (r, g, b, a)
+                dst[x, y] = (max(0, int(r - m * 0.8)), g, max(0, int(b - m * 0.8)), int(255 * (1 - k * 0.85)))
     return out
 
 
@@ -214,6 +224,12 @@ def main():
         if c is None:
             print("missing", n); continue
         add(n, fit(trim(c), 140))
+
+    # --- touch action buttons (3x2)
+    bt = key_mask(Image.open(os.path.join(SRC, "buttons_sheet.png")))
+    for c, n in zip(by_centroid(bt, 3, 2, 60), ["btn_aim", "btn_swap", "btn_dig", "btn_jump", "btn_fire", "btn_rope"]):
+        if c is not None:
+            add(n, fit(trim(c), 256))
 
     # --- background + textures (opaque)
     bg = Image.open(os.path.join(SRC, "cave_background.png")).convert("RGB")

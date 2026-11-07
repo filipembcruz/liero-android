@@ -42,6 +42,7 @@ struct Viewport
 	// Mobile HD layer: parts the HD renderer draws itself (rendering only).
 	bool drawLevel = true, drawWorms = true, drawSObjects = true, drawBonuses = true;
 	bool const* hdWeapons = nullptr; // per weapon index: true = drawn by the HD layer
+	int padX = 0, padY = 0;
 
 
 	void setCenter(int x, int y)

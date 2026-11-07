@@ -27,6 +27,8 @@ SDL_Color wormColor(Worm const& w)
 	return ui::rgba(w.settings->rgb[0] * 4 + 3, w.settings->rgb[1] * 4 + 3, w.settings->rgb[2] * 4 + 3);
 }
 
+inline float fx16(int v) { return v / 65536.0f; }
+
 std::string modeName(int mode)
 {
 	switch (mode)
@@ -135,6 +137,8 @@ void View::update(Game& g)
 	vp_->process(g);
 	renderer_.clear();
 	bool hdl = hdOn();
+	vp_->padX = hdl ? viewW_ / 4 : 0;
+	vp_->padY = hdl ? viewH_ / 5 : 0;
 	vp_->drawLevel = vp_->drawWorms = vp_->drawSObjects = vp_->drawBonuses = !hdl;
 	vp_->hdWeapons = hdl ? hd::weaponMask(*g.common) : nullptr;
 	bool shadow = g.settings->shadow;
@@ -365,6 +369,31 @@ void View::drawHud(SDL_Renderer* r, Game& g)
 	Common& common = *g.common;
 	ensureIcons(r, common);
 
+	// Your worm on screen (for the marker and for fading panels that cover it)
+	Worm& meW = *g.worms[0];
+	float mx = dst_.x + (fx16(meW.pos.x) - vp_->x) * fscale_;
+	float my = dst_.y + (fx16(meW.pos.y) - vp_->y) * fscale_;
+	float base = config.hudOpacity / 100.0f;
+	playerOnScreen = meW.visible; playerX = mx; playerY = my;
+	auto groupAlpha = [&](SDL_FRect area) {
+		if (config.hudAutoFade && meW.visible)
+		{
+			float m = 40 * s;
+			if (mx > area.x - m && mx < area.x + area.w + m && my > area.y - m && my < area.y + area.h + m)
+				return base * 0.25f;
+		}
+		return base;
+	};
+	if (config.marker && meW.visible)
+	{
+		ui::setAlpha(1.0f);
+		float bob = std::sin(g.cycles * 0.15f) * 5 * s;
+		float ty = my - 15.0f * fscale_ - 16 * s + bob;
+		SDL_Color c = wormColor(meW);
+		ui::tri(r, { mx - 18 * s, ty - 20 * s }, { mx + 18 * s, ty - 20 * s }, { mx, ty + 5 * s }, ui::rgba(255, 255, 255, 0.95f));
+		ui::tri(r, { mx - 13 * s, ty - 16.5f * s }, { mx + 13 * s, ty - 16.5f * s }, { mx, ty + 0.5f * s }, c);
+	}
+
 	// --- Scoreboard (top-left)
 	std::vector<Worm*> order(g.worms.begin(), g.worms.end());
 	bool lives = g.settings->gameMode == Settings::GMKillEmAll || g.settings->gameMode == Settings::GMScalesOfJustice;
@@ -372,6 +401,7 @@ void View::drawHud(SDL_Renderer* r, Game& g)
 		return lives ? (a->lives * 1000 + a->kills) > (b->lives * 1000 + b->kills) : a->kills > b->kills;
 	});
 	SDL_FRect sb = { 12 * s, 10 * s, 330 * s, 22 * s + order.size() * 44 * s };
+	ui::setAlpha(groupAlpha(sb));
 	ui::panel(r, sb, s);
 	for (std::size_t i = 0; i < order.size(); ++i)
 	{
@@ -398,6 +428,7 @@ void View::drawHud(SDL_Renderer* r, Game& g)
 	char tbuf[16];
 	std::snprintf(tbuf, sizeof(tbuf), "%d:%02d", secs / 60, secs % 60);
 	SDL_FRect tp = { sb.x + sb.w + 14 * s, 10 * s, 128 * s, 54 * s };
+	ui::setAlpha(groupAlpha({ tp.x, tp.y, 128 * s + 14 * s + 250 * s, 64 * s }));
 	ui::panel(r, tp, s);
 	ui::icon(r, ui::IClock, tp.x + 28 * s, tp.y + tp.h / 2, 15 * s, ui::rgba(255, 255, 255));
 	ui::text(r, tbuf, tp.x + 52 * s, tp.y + tp.h / 2, 28 * s, ui::rgba(255, 255, 255));
@@ -418,17 +449,22 @@ void View::drawHud(SDL_Renderer* r, Game& g)
 	if (config.minimap)
 	{
 		SDL_FRect mp = { mm.x - 6 * s, mm.y - 6 * s, mm.w + 12 * s, mm.h + 12 * s };
+		ui::setAlpha(groupAlpha(mp));
 		ui::panel(r, mp, s);
+		SDL_SetTextureAlphaMod(minimap_ ? minimap_ : nullptr, (Uint8)(ui::alpha() * 255));
 		drawMinimap(r, g, mm);
+		if (minimap_) SDL_SetTextureAlphaMod(minimap_, 255);
 		pauseRect = { mp.x - 70 * s, 14 * s, 58 * s, 58 * s };
 	}
 	else
 		pauseRect = { winW_ - 80 * s, 14 * s, 58 * s, 58 * s };
 	{
+		ui::setAlpha(std::max(0.5f, base));
 		float cx = pauseRect.x + pauseRect.w / 2, cy = pauseRect.y + pauseRect.h / 2;
 		ui::actionButton(r, cx, cy, pauseRect.w / 2, ui::rgba(150, 160, 190), ui::IPause, false, 0.9f);
 	}
 
+	ui::setAlpha(1.0f);
 	drawOffscreen(r, g);
 
 	// --- Bottom: player strip + weapon bar, between stick and action buttons
@@ -440,6 +476,7 @@ void View::drawHud(SDL_Renderer* r, Game& g)
 	float barW = slotW * 5 + 16 * s;
 	float barH = std::min(100 * s, slotW * 0.95f);
 	SDL_FRect wb = { left + (avail - barW) / 2, winH_ - barH - 14 * s, barW, barH };
+	ui::setAlpha(groupAlpha({ wb.x, wb.y - 54 * s, wb.w, wb.h + 54 * s }));
 	ui::panel(r, wb, s, 0.78f);
 	slotCount = 5;
 	for (int i = 0; i < 5; ++i)
@@ -467,7 +504,9 @@ void View::drawHud(SDL_Renderer* r, Game& g)
 			float box = std::min(sr.w * 0.8f, sr.h * 0.55f);
 			float k = box / std::max(iw, ih);
 			SDL_FRect ir = { sr.x + (sr.w - iw * k) / 2, sr.y + sr.h * 0.08f + (box - ih * k) / 2, iw * k, ih * k };
+			SDL_SetTextureAlphaMod(hdIcon, (Uint8)(ui::alpha() * 255));
 			SDL_RenderCopyF(r, hdIcon, NULL, &ir);
+			SDL_SetTextureAlphaMod(hdIcon, 255);
 		}
 		else if (widx >= 0 && widx < (int)weaponIcons_.size() && weaponIcons_[widx])
 		{
@@ -478,17 +517,14 @@ void View::drawHud(SDL_Renderer* r, Game& g)
 		std::string name = ww.type->name;
 		float px = std::min(17 * s, (sr.w - 10 * s) / std::max(1.0f, ui::textWidth(name, 1.0f)));
 		ui::text(r, name, sr.x + sr.w / 2, sr.y + sr.h * 0.8f, px, cur ? ui::rgba(60, 30, 10) : ui::rgba(255, 255, 255), ui::Center, !cur);
-		// ammo / reload indicator
-		float frac;
-		if (ww.available())
-			frac = ww.type->ammo > 0 ? ww.ammo / float(ww.type->ammo) : 1.0f;
-		else
+		// reload indicator: only while the weapon is actually reloading
+		if (!ww.available())
 		{
 			int lt = ww.type->computedLoadingTime(*g.settings);
-			frac = lt > 0 ? 1.0f - ww.loadingLeft / float(lt) : 0.0f;
+			float frac = lt > 0 ? 1.0f - ww.loadingLeft / float(lt) : 0.0f;
+			SDL_FRect ab = { sr.x + 6 * s, sr.y + sr.h - 7 * s, sr.w - 12 * s, 4 * s };
+			ui::bar(r, ab, frac, ui::rgba(255, 140, 80), ui::rgba(220, 70, 40));
 		}
-		SDL_FRect ab = { sr.x + 6 * s, sr.y + sr.h - 7 * s, sr.w - 12 * s, 4 * s };
-		ui::bar(r, ab, frac, ww.available() ? ui::rgba(120, 210, 255) : ui::rgba(255, 120, 80), ww.available() ? ui::rgba(60, 140, 230) : ui::rgba(220, 60, 40));
 	}
 
 	// Player strip above the bar: head, name, health, current weapon state
@@ -506,6 +542,7 @@ void View::drawHud(SDL_Renderer* r, Game& g)
 	WormWeapon const& cw = me.weapons[me.currentWeapon];
 	if (cw.type && !cw.available() && (g.cycles % 30) < 20)
 		ui::text(r, "Recarregando…", ps.x + ps.w - 12 * s, ps.y + 13 * s, 16 * s, ui::rgba(255, 170, 90), ui::Right);
+	ui::setAlpha(1.0f);
 }
 
 } // namespace mobile

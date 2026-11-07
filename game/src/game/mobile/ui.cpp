@@ -35,8 +35,13 @@ void setColor(SDL_Vertex& v, SDL_Color c) { v.color = c; v.tex_coord = { 0, 0 };
 
 } // anon
 
+static float gAlpha = 1.0f;
+void setAlpha(float a) { gAlpha = std::max(0.0f, std::min(1.0f, a)); }
+float alpha() { return gAlpha; }
+
 SDL_Color rgba(int r, int g, int b, float a)
 {
+	a *= gAlpha;
 	SDL_Color c;
 	c.r = (Uint8)std::max(0, std::min(255, r));
 	c.g = (Uint8)std::max(0, std::min(255, g));

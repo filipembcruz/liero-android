@@ -47,6 +47,9 @@ struct View
 	void ensureIcons(SDL_Renderer* r, Common& common);
 	int width() const { return winW_; }
 	bool suppressFade = false; // menus draw the frozen match without the fade
+	// Your worm's position on screen during the last HUD draw (for fading controls over it).
+	bool playerOnScreen = false;
+	float playerX = 0, playerY = 0;
 	int height() const { return winH_; }
 
 private:
