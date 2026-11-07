@@ -43,7 +43,8 @@ jobs:
           cmake --build build-port-clang -j4
       - name: Build port (ARM64, static, run under qemu)
         run: |
-          cmake -S tests/sim -B build-port-arm64 -DLIERO_SRC=$PWD/game/src -DSDL2_INCLUDE_DIR=/usr/include/SDL2 \
+          git clone -q --depth 1 --branch "$SDL_TAG" https://github.com/libsdl-org/SDL sdl-src
+          cmake -S tests/sim -B build-port-arm64 -DLIERO_SRC=$PWD/game/src -DSDL2_INCLUDE_DIR=$PWD/sdl-src/include \
             -DCMAKE_C_COMPILER=aarch64-linux-gnu-gcc -DCMAKE_CXX_COMPILER=aarch64-linux-gnu-g++ -DLIERO_STATIC=ON \
             -DCMAKE_SYSTEM_NAME=Linux -DCMAKE_SYSTEM_PROCESSOR=aarch64
           cmake --build build-port-arm64 -j4
@@ -100,7 +101,7 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5
         with: { distribution: temurin, java-version: '17' }
       - uses: gradle/actions/setup-gradle@v4
         with: { gradle-version: '8.10.2' }
