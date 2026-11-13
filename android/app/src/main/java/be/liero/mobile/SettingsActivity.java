@@ -84,6 +84,12 @@ public class SettingsActivity extends Activity {
         ui.segmented(vis, new String[] { "Clássico", "Suave", "HD" }, p.visual(),
             i -> p.edit().putInt("smooth", i).apply());
 
+        TextView thT = ui.text("Tema do modo HD", 15, Ui.TEXT);
+        thT.setPadding(0, ui.dp(8), 0, ui.dp(6));
+        vis.addView(thT);
+        ui.segmented(vis, new String[] { "Caverna", "Vulcão", "Gelo" }, p.theme(),
+            i -> p.edit().putInt("theme", i).apply());
+
         ui.card("Durante a partida",
             "Toque em Pausa (ou Voltar) para abrir o menu com Configurações: controles, tempo de carregamento, "
             + "vidas, dificuldade, sangue e campo de visão. O menu original do Liero fica em Avançado.");

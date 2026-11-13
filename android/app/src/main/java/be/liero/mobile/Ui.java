@@ -25,13 +25,14 @@ final class Ui {
     static final int YELLOW = Color.rgb(255, 201, 60);
     static final int TEXT = Color.rgb(240, 236, 255);
     static final int MUTED = Color.rgb(176, 166, 220);
-    static final Typeface FONT = Typeface.create(Typeface.MONOSPACE, Typeface.BOLD);
+    static Typeface FONT = Typeface.create(Typeface.MONOSPACE, Typeface.BOLD);
 
     final Activity a;
     final LinearLayout body;
 
     Ui(Activity a, String title) {
         this.a = a;
+        FONT = LauncherActivity.font(a);
         if (Build.VERSION.SDK_INT >= 28) {
             WindowManager.LayoutParams lp = a.getWindow().getAttributes();
             lp.layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES;
@@ -107,7 +108,7 @@ final class Ui {
         c.addView(text(title, 18, TEXT));
         if (subtitle != null) {
             TextView st = text(subtitle, 13, MUTED);
-            st.setTypeface(Typeface.MONOSPACE);
+            st.setTypeface(Typeface.create(FONT, Typeface.NORMAL));
             st.setPadding(0, dp(2), 0, dp(8));
             c.addView(st);
         }

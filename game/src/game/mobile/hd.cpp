@@ -9,6 +9,7 @@
 #include "../level.hpp"
 #include "../math.hpp"
 #include "../constants.hpp"
+#include "config.hpp"
 
 #include <cmath>
 #include <cstring>
@@ -57,6 +58,21 @@ struct WeaponLook
 	const char* gun = "gun_pistol";
 	float gunLen = 8;
 };
+struct Theme
+{
+	const char* bg; const char* dirt; const char* rock;
+	uint32_t rim;      // colour of the soft rim inside tunnels (RGB)
+	int rimAlpha;      // max alpha of that rim
+	uint32_t edge;     // colour of the solid edge line (RGB)
+	float edgeK;       // 0 = dark outline (multiply), 1 = coloured glow
+};
+const Theme themes[3] = {
+	{ "bg_cave", "tex_dirt", "tex_rock", 0x0A0612, 150, 0x000000, 0.0f },
+	{ "bg_volcano", "tex_dirt_volcano", "tex_rock_volcano", 0xFF5A10, 120, 0xFF8A20, 0.85f },
+	{ "bg_ice", "tex_dirt_ice", "tex_rock_ice", 0x9FE4FF, 90, 0xE8FAFF, 0.7f },
+};
+Theme const* theme = &themes[0];
+
 std::vector<WeaponLook> looks;
 std::vector<char> mask; // bool per weapon
 Common* lookCommon = nullptr;
@@ -208,8 +224,10 @@ void regenTerrain(Game& g, int x0, int y0, int x1, int y1)
 	x0 = std::max(0, x0 - 1); y0 = std::max(0, y0 - 1);
 	x1 = std::min(W, x1 + 1); y1 = std::min(H, y1 + 1);
 	if (x1 <= x0 || y1 <= y0) return;
-	Spr* dirt = get("tex_dirt");
-	Spr* rock = get("tex_rock");
+	Spr* dirt = get(theme->dirt);
+	Spr* rock = get(theme->rock);
+	if (!dirt || dirt->px.empty()) dirt = get("tex_dirt");
+	if (!rock || rock->px.empty()) rock = get("tex_rock");
 	if (!dirt || !rock || dirt->px.empty() || rock->px.empty()) return;
 	int ow = (x1 - x0) * T, oh = (y1 - y0) * T;
 	genBuf.assign(std::size_t(ow) * oh, 0);
@@ -257,12 +275,20 @@ void regenTerrain(Game& g, int x0, int y0, int x1, int y1)
 				int rr = std::min(255, (int)(((c >> 16) & 255) * shade));
 				int gg = std::min(255, (int)(((c >> 8) & 255) * shade));
 				int bb = std::min(255, (int)((c & 255) * shade));
+				if (s < 0.6f && theme->edgeK > 0)
+				{
+					// themed edge: lava glow / frost line instead of a dark outline
+					float e = theme->edgeK;
+					rr = (int)(rr * (1 - e) + ((theme->edge >> 16) & 255) * e);
+					gg = (int)(gg * (1 - e) + ((theme->edge >> 8) & 255) * e);
+					bb = (int)(bb * (1 - e) + (theme->edge & 255) * e);
+				}
 				out = 0xFF000000u | (rr << 16) | (gg << 8) | bb;
 			}
 			else if (s > 0.32f)
 			{
 				// soft dark rim inside the tunnel edge (ambient occlusion)
-				out = (uint32_t((s - 0.32f) / 0.18f * 150) << 24) | 0x0A0612u;
+				out = (uint32_t((s - 0.32f) / 0.18f * theme->rimAlpha) << 24) | theme->rim;
 			}
 			genBuf[std::size_t(oy) * ow + ox] = out;
 		}
@@ -343,6 +369,8 @@ void newGame(SDL_Renderer* r, Game& g)
 {
 	if (!loaded) return;
 	curGame = &g;
+	theme = &themes[std::max(0, std::min(2, config.theme))];
+	if (!get(theme->bg)) theme = &themes[0];
 	buildLooks(*g.common);
 	for (int w = 0; w < 2; ++w)
 		for (int f = 0; f < 8; ++f)
@@ -369,7 +397,8 @@ void newGame(SDL_Renderer* r, Game& g)
 
 void drawBackground(SDL_Renderer* r, Game& g, Camera const& cam)
 {
-	Spr* bg = get("bg_cave");
+	Spr* bg = get(theme->bg);
+	if (!bg) bg = get("bg_cave");
 	if (!bg) return;
 	// cover the screen, gentle parallax with the camera
 	float levelW = (float)g.level.width, levelH = (float)g.level.height;

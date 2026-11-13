@@ -240,6 +240,20 @@ def main():
     add("tex_dirt", seamless(tx.crop((0, 0, W // 2, H)), 384))
     add("tex_rock", seamless(tx.crop((W // 2, 0, W, H)), 384))
 
+    # --- extra HD themes: art/source/themes/<name>/{background.png,textures.png}
+    for theme in ("volcano", "ice"):
+        d = os.path.join(SRC, "themes", theme)
+        bgp, txp = os.path.join(d, "background.png"), os.path.join(d, "textures.png")
+        if not (os.path.exists(bgp) and os.path.exists(txp)):
+            print("theme missing:", theme); continue
+        b = Image.open(bgp).convert("RGB")
+        b = b.resize((1280, int(1280 * b.height / b.width)), Image.LANCZOS)
+        add("bg_" + theme, b.convert("RGBA"))
+        t = Image.open(txp).convert("RGB")
+        W, H = t.size
+        add("tex_dirt_" + theme, seamless(t.crop((0, 0, W // 2, H)), 384))
+        add("tex_rock_" + theme, seamless(t.crop((W // 2, 0, W, H)), 384))
+
     with open(OUT, "wb") as f:
         f.write(b"LHD1" + struct.pack("<H", len(entries)))
         for name, img, ax, ay in entries:

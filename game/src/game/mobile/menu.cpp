@@ -314,7 +314,7 @@ void settingsScreen(Game* game)
 		}
 		if (F.usingPad && F.focus == 0 && F.navX && false) {}
 
-		float y = pnl.y + 92 * s, rh = 70 * s, gap = 8 * s;
+		float y = pnl.y + 90 * s, rh = 62 * s, gap = 6 * s;
 		auto row = [&]() { SDL_FRect r = { pnl.x + 28 * s, y, pnl.w - 56 * s, rh }; y += rh + gap; return r; };
 		int d;
 		if (tab == 0)
@@ -386,6 +386,8 @@ void settingsScreen(Game* game)
 			if ((d = stepper(row(), "Campo de visão", fv[config.fov], "Amplo/Máximo mostram mais do mapa"))) { config.fov = std::max(0, std::min(2, config.fov + d)); }
 			static const char* vn[3] = { "Clássico", "Suave", "HD" };
 			if ((d = stepper(row(), "Visual", vn[std::max(0, std::min(2, config.smooth))], "HD: vermes, armas, explosões, terreno e fundo novos"))) { config.smooth = std::max(0, std::min(2, config.smooth + d)); if (game) view.newGame(*game); }
+			static const char* tn[3] = { "Caverna", "Vulcão", "Gelo" };
+			if ((d = stepper(row(), "Tema (modo HD)", tn[config.theme], "Terreno e fundo do mapa"))) { config.theme = std::max(0, std::min(2, config.theme + d)); if (game) view.newGame(*game); }
 			if ((d = stepper(row(), "Minimapa", config.minimap ? "Ligado" : "Desligado"))) { config.minimap = d > 0 ? 1 : 0; }
 			if ((d = stepper(row(), "Opacidade do HUD", pct(config.hudOpacity), "Placar, minimapa e barra de armas"))) { config.hudOpacity = std::max(20, std::min(100, config.hudOpacity + d * 10)); }
 			if ((d = stepper(row(), "HUD transparente sobre você", config.hudAutoFade ? "Ligado" : "Desligado", "O painel some quando o seu verme passa por baixo"))) { config.hudAutoFade = d > 0 ? 1 : 0; }

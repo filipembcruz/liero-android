@@ -22,13 +22,14 @@ read PW PH < <(adb shell wm size | sed -n 's/.*: \([0-9]*\)x\([0-9]*\).*/\1 \2/p
 W=$(( PW > PH ? PW : PH )); H=$(( PW > PH ? PH : PW ))
 echo "screen ${W}x${H}"
 
-# Launcher art (1672x941) is drawn "fit" and centred
-art() { # $1 $2 = art coords -> prints screen coords
-  python3 - "$1" "$2" "$W" "$H" <<'PY'
+# Launcher buttons are drawn by the app (unit u = H/720), see LauncherActivity.layoutButtons
+btn() { # $1 = play|custom|maps|trophy -> prints screen coords
+  python3 - "$1" "$W" "$H" <<'PY'
 import sys
-x,y,W,H=map(float,sys.argv[1:])
-s=min(W/1672,H/941); ox=(W-1672*s)/2; oy=(H-941*s)/2
-print(int(ox+x*s), int(oy+y*s))
+k,W,H=sys.argv[1],float(sys.argv[2]),float(sys.argv[3]); u=H/720
+y0=H*0.47
+pos={'play':(W/2,y0+46*u),'custom':(W/2,y0+92*u+22.4*u+84*u+35*u),'maps':(W/2,y0+92*u+22.4*u+168*u+35*u),'trophy':(W-24*u-36*u,18*u+36*u)}
+x,y=pos[k]; print(int(x),int(y))
 PY
 }
 
@@ -45,15 +46,15 @@ adb shell am force-stop $PKG
 
 # Settings + stats screens
 adb shell am start -W -n $PKG/.LauncherActivity; sleep 3
-read X Y < <(art 836 676); adb shell input tap $X $Y; sleep 2; shot 03_personalizar
+read X Y < <(btn custom); adb shell input tap $X $Y; sleep 2; shot 03_personalizar
 adb shell input keyevent KEYCODE_BACK; sleep 1
-read X Y < <(art 836 781); adb shell input tap $X $Y; sleep 2; shot 04_mapas
+read X Y < <(btn maps); adb shell input tap $X $Y; sleep 2; shot 04_mapas
 adb shell input keyevent KEYCODE_BACK; sleep 1
-read X Y < <(art 1598 65); adb shell input tap $X $Y; sleep 2; shot 05_conquistas
+read X Y < <(btn trophy); adb shell input tap $X $Y; sleep 2; shot 05_conquistas
 adb shell input keyevent KEYCODE_BACK; sleep 1
 
 # JOGAR
-read X Y < <(art 836 433); adb shell input tap $X $Y
+read X Y < <(btn play); adb shell input tap $X $Y
 for i in $(seq 1 30); do sleep 1; [ -n "$(gamepid)" ] && break; done
 sleep 6
 shot 06_weapon_picker

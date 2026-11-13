@@ -10,6 +10,7 @@ import android.graphics.Color;
 import android.graphics.LinearGradient;
 import android.graphics.Matrix;
 import android.graphics.Paint;
+import android.graphics.Path;
 import android.graphics.RectF;
 import android.graphics.Shader;
 import android.graphics.Typeface;
@@ -24,11 +25,13 @@ import android.view.View;
 import android.view.WindowManager;
 import android.widget.Toast;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /**
- * Start screen (artwork from the project brief): JOGAR, PERSONALIZAR, MAPAS,
- * settings gear, stats and trophies. Multiplayer is shown but disabled for
- * now (single player only). JOGAR shows the loading screen while the game
- * data is installed, then starts the original game.
+ * Start screen. The scenery and the logo are separate images and the buttons
+ * are drawn by the app, so the screen fills any phone aspect ratio without
+ * bars. Multiplayer is shown but disabled (single player only for now).
  */
 public class LauncherActivity extends Activity {
 
@@ -36,10 +39,29 @@ public class LauncherActivity extends Activity {
     private LoadingView loading;
     private final Handler ui = new Handler(Looper.getMainLooper());
     private boolean starting;
+    static Typeface font;
+
+    static final String[] TIPS = {
+        "Explore o mapa em busca de armas, munição e kits de vida.",
+        "Segure Trocar e use o direcional para escolher a arma.",
+        "A corda ninja prende em qualquer parede: balance e ataque de cima!",
+        "O botão Cavar abre túneis sem precisar parar de mirar.",
+        "Toque numa arma da barra de baixo para trocar na hora.",
+        "Explosões cavam o mapa: use isso para emboscar a CPU.",
+    };
+
+    static Typeface font(Context c) {
+        if (font == null) {
+            try { font = Typeface.createFromAsset(c.getAssets(), "fonts/Poppins-Bold.ttf"); }
+            catch (Exception e) { font = Typeface.DEFAULT_BOLD; }
+        }
+        return font;
+    }
 
     @Override
     protected void onCreate(Bundle b) {
         super.onCreate(b);
+        font(this);
         if (Build.VERSION.SDK_INT >= 28) {
             WindowManager.LayoutParams lp = getWindow().getAttributes();
             lp.layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES;
@@ -48,7 +70,6 @@ public class LauncherActivity extends Activity {
         menu = new MenuView(this);
         setContentView(menu);
         hideSystemUi();
-        // Install data in the background right away so JOGAR is instant.
         new Thread(() -> {
             try { AssetInstaller.install(this, p -> {}); } catch (Exception ignored) {}
         }).start();
@@ -103,7 +124,6 @@ public class LauncherActivity extends Activity {
                 });
                 return;
             }
-            // Short, smooth finish of the bar (data install is usually instant).
             long minMs = 700;
             while (SystemClock.uptimeMillis() - t0 < minMs) {
                 float f = (SystemClock.uptimeMillis() - t0) / (float) minMs;
@@ -120,112 +140,114 @@ public class LauncherActivity extends Activity {
         }).start();
     }
 
-    // Maps a region of the 1672x941 artwork to an action.
-    static final class Zone {
-        final RectF r; final int id; final boolean disabled;
-        Zone(float l, float t, float rr, float b, int id, boolean disabled) {
-            this.r = new RectF(l, t, rr, b); this.id = id; this.disabled = disabled;
+    // ------------------------------------------------------------------
+
+    /** Scenery (cover-cropped to any aspect) + logo. */
+    abstract static class SceneView extends View {
+        final Bitmap scene, logo;
+        final Matrix cover = new Matrix();
+        final Paint bmp = new Paint(Paint.FILTER_BITMAP_FLAG | Paint.ANTI_ALIAS_FLAG);
+        final Paint vignette = new Paint();
+        float u = 1; // 1 unit = 1/720 of the screen height
+        float pan = 0;
+        final long t0 = SystemClock.uptimeMillis();
+
+        SceneView(Context c) {
+            super(c);
+            BitmapFactory.Options o = new BitmapFactory.Options();
+            o.inScaled = false;
+            scene = BitmapFactory.decodeResource(c.getResources(), R.drawable.menu_scene, o);
+            logo = BitmapFactory.decodeResource(c.getResources(), R.drawable.logo, o);
+        }
+
+        @Override
+        protected void onSizeChanged(int w, int h, int ow, int oh) {
+            u = h / 720f;
+            vignette.setShader(new LinearGradient(0, 0, 0, h,
+                new int[] { Color.argb(90, 10, 6, 30), Color.argb(0, 0, 0, 0), Color.argb(150, 10, 6, 30) },
+                new float[] { 0f, 0.45f, 1f }, Shader.TileMode.CLAMP));
+        }
+
+        void drawScene(Canvas c, boolean animate) {
+            int w = getWidth(), h = getHeight();
+            float sw = scene.getWidth(), sh = scene.getHeight();
+            float k = Math.max(w / sw, h / sh) * 1.06f; // a little extra room for a slow pan
+            float extra = sw * k - w;
+            if (animate) pan = (float) Math.sin((SystemClock.uptimeMillis() - t0) / 9000.0) * 0.5f + 0.5f;
+            cover.reset();
+            cover.postScale(k, k);
+            cover.postTranslate(-extra * pan, (h - sh * k) / 2f);
+            c.drawBitmap(scene, cover, bmp);
+            c.drawRect(0, 0, w, h, vignette);
+        }
+
+        RectF drawLogo(Canvas c, float cx, float top, float maxW, float maxH) {
+            float k = Math.min(maxW / logo.getWidth(), maxH / logo.getHeight());
+            RectF r = new RectF(cx - logo.getWidth() * k / 2, top, cx + logo.getWidth() * k / 2, top + logo.getHeight() * k);
+            c.drawBitmap(logo, null, r, bmp);
+            return r;
         }
     }
 
     static final int Z_PLAY = 1, Z_MULTI = 2, Z_CUSTOM = 3, Z_MAPS = 4, Z_GEAR = 5, Z_STATS = 6, Z_TROPHY = 7;
 
-    /** Draws artwork scaled to fit (letterbox filled with a dimmed cover copy). */
-    abstract static class ArtView extends View {
-        final Bitmap art, blurred;
-        final Matrix fit = new Matrix(), cover = new Matrix();
-        final Paint bmpPaint = new Paint(Paint.FILTER_BITMAP_FLAG | Paint.ANTI_ALIAS_FLAG);
-        final Paint dim = new Paint();
-        float scale = 1, ox = 0, oy = 0;
-
-        ArtView(Context c, int res) {
-            super(c);
-            BitmapFactory.Options o = new BitmapFactory.Options();
-            o.inScaled = false;
-            art = BitmapFactory.decodeResource(c.getResources(), res, o);
-            // Cheap blur for the side bars: downscale twice, draw upscaled with filtering.
-            Bitmap tiny = Bitmap.createScaledBitmap(art, art.getWidth() / 12, art.getHeight() / 12, true);
-            blurred = Bitmap.createScaledBitmap(tiny, tiny.getWidth() / 3, tiny.getHeight() / 3, true);
-            dim.setColor(Color.argb(120, 10, 6, 24));
-        }
-
-        @Override
-        protected void onSizeChanged(int w, int h, int ow, int oh) {
-            float aw = art.getWidth(), ah = art.getHeight();
-            scale = Math.min(w / aw, h / ah);
-            ox = (w - aw * scale) / 2f; oy = (h - ah * scale) / 2f;
-            fit.reset(); fit.postScale(scale, scale); fit.postTranslate(ox, oy);
-            float cs = Math.max(w / aw, h / ah);
-            float bs = cs * aw / blurred.getWidth();
-            cover.reset(); cover.postScale(bs, bs); cover.postTranslate((w - aw * cs) / 2f, (h - ah * cs) / 2f);
-        }
-
-        void drawArt(Canvas c) {
-            c.drawColor(Color.rgb(20, 14, 40));
-            c.drawBitmap(blurred, cover, bmpPaint);
-            c.drawRect(0, 0, getWidth(), getHeight(), dim);
-            c.drawBitmap(art, fit, bmpPaint);
-        }
-
-        RectF toScreen(RectF a) {
-            return new RectF(ox + a.left * scale, oy + a.top * scale, ox + a.right * scale, oy + a.bottom * scale);
+    static final class Btn {
+        RectF r = new RectF();
+        int id; String label; int icon; boolean primary, disabled, square;
+        Btn(int id, String label, int icon, boolean primary, boolean disabled, boolean square) {
+            this.id = id; this.label = label; this.icon = icon; this.primary = primary; this.disabled = disabled; this.square = square;
         }
     }
 
-    final class MenuView extends ArtView {
-        final Zone[] zones = {
-            new Zone(578, 366, 1095, 500, Z_PLAY, false),
-            new Zone(605, 523, 1068, 613, Z_MULTI, true),
-            new Zone(605, 632, 1068, 721, Z_CUSTOM, false),
-            new Zone(605, 737, 1068, 826, Z_MAPS, false),
-            new Zone(25, 22, 125, 108, Z_GEAR, false),
-            new Zone(1418, 22, 1518, 108, Z_STATS, false),
-            new Zone(1548, 22, 1648, 108, Z_TROPHY, false),
-        };
-        Zone pressed;
-        final Paint hl = new Paint(Paint.ANTI_ALIAS_FLAG);
-        final Paint off = new Paint(Paint.ANTI_ALIAS_FLAG);
-        final Paint tag = new Paint(Paint.ANTI_ALIAS_FLAG);
-        final Paint tagText = new Paint(Paint.ANTI_ALIAS_FLAG);
+    final class MenuView extends SceneView {
+        final List<Btn> btns = new ArrayList<>();
+        Btn pressed;
+        final Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
 
         MenuView(Context c) {
-            super(c, R.drawable.menu_bg);
-            hl.setColor(Color.argb(70, 255, 255, 255));
-            off.setColor(Color.argb(140, 12, 8, 30));
-            tag.setColor(Color.rgb(255, 201, 60));
-            tagText.setColor(Color.rgb(40, 20, 10));
-            tagText.setTypeface(Typeface.create(Typeface.MONOSPACE, Typeface.BOLD));
-            tagText.setTextAlign(Paint.Align.CENTER);
+            super(c);
+            btns.add(new Btn(Z_PLAY, "JOGAR", Icons.PLAY, true, false, false));
+            btns.add(new Btn(Z_MULTI, "MULTIJOGADOR", Icons.PEOPLE, false, true, false));
+            btns.add(new Btn(Z_CUSTOM, "PERSONALIZAR", Icons.TOOLS, false, false, false));
+            btns.add(new Btn(Z_MAPS, "MAPAS", Icons.MAP, false, false, false));
+            btns.add(new Btn(Z_GEAR, null, Icons.GEAR, false, false, true));
+            btns.add(new Btn(Z_STATS, null, Icons.BARS, false, false, true));
+            btns.add(new Btn(Z_TROPHY, null, Icons.TROPHY, false, false, true));
+        }
+
+        void layoutButtons() {
+            int w = getWidth(), h = getHeight();
+            float cx = w / 2f;
+            float bw = Math.min(w * 0.36f, 520 * u), playH = 92 * u, bh = 70 * u, gap = 14 * u;
+            float y = h * 0.47f;
+            float sq = 72 * u, m = 24 * u;
+            for (Btn b : btns) {
+                switch (b.id) {
+                    case Z_PLAY: b.r.set(cx - bw / 2, y, cx + bw / 2, y + playH); y += playH + gap * 1.6f; break;
+                    case Z_MULTI: case Z_CUSTOM: case Z_MAPS:
+                        float sw = bw * 0.9f;
+                        b.r.set(cx - sw / 2, y, cx + sw / 2, y + bh); y += bh + gap; break;
+                    case Z_GEAR: b.r.set(m, 18 * u, m + sq, 18 * u + sq); break;
+                    case Z_STATS: b.r.set(w - m - sq * 2 - 14 * u, 18 * u, w - m - sq - 14 * u, 18 * u + sq); break;
+                    case Z_TROPHY: b.r.set(w - m - sq, 18 * u, w - m, 18 * u + sq); break;
+                }
+            }
         }
 
         @Override
         protected void onDraw(Canvas c) {
-            drawArt(c);
-            for (Zone z : zones) {
-                if (!z.disabled) continue;
-                RectF r = toScreen(z.r);
-                float rad = r.height() * 0.22f;
-                c.drawRoundRect(r, rad, rad, off);
-                // "EM BREVE" tag
-                float th = r.height() * 0.34f;
-                tagText.setTextSize(th * 0.62f);
-                float tw = tagText.measureText("EM BREVE") + th * 0.8f;
-                RectF t = new RectF(r.right - tw - th * 0.3f, r.top - th * 0.45f, r.right - th * 0.3f, r.top + th * 0.55f);
-                c.drawRoundRect(t, th * 0.3f, th * 0.3f, tag);
-                c.drawText("EM BREVE", t.centerX(), t.centerY() + th * 0.22f, tagText);
-            }
-            if (pressed != null && !pressed.disabled) {
-                RectF r = toScreen(pressed.r);
-                float rad = r.height() * 0.22f;
-                c.drawRoundRect(r, rad, rad, hl);
-            }
+            drawScene(c, true);
+            layoutButtons();
+            drawLogo(c, getWidth() / 2f, 10 * u, Math.min(getWidth() * 0.5f, 640 * u), getHeight() * 0.40f);
+            for (Btn b : btns) Icons.button(c, p, b, b == pressed, u, font);
+            postInvalidateOnAnimation();
         }
 
-        Zone hit(float x, float y) {
-            for (Zone z : zones) {
-                RectF r = toScreen(z.r);
-                r.inset(-r.height() * 0.08f, -r.height() * 0.08f);
-                if (r.contains(x, y)) return z;
+        Btn hit(float x, float y) {
+            for (Btn b : btns) {
+                RectF r = new RectF(b.r);
+                r.inset(-8 * u, -8 * u);
+                if (r.contains(x, y)) return b;
             }
             return null;
         }
@@ -236,27 +258,25 @@ public class LauncherActivity extends Activity {
                 case MotionEvent.ACTION_DOWN:
                     pressed = hit(e.getX(), e.getY());
                     if (pressed != null) performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY);
-                    invalidate();
                     return true;
                 case MotionEvent.ACTION_MOVE:
-                    if (pressed != null && hit(e.getX(), e.getY()) != pressed) { pressed = null; invalidate(); }
+                    if (pressed != null && hit(e.getX(), e.getY()) != pressed) pressed = null;
                     return true;
                 case MotionEvent.ACTION_UP:
-                    Zone z = pressed;
+                    Btn b = pressed;
                     pressed = null;
-                    invalidate();
-                    if (z != null && hit(e.getX(), e.getY()) == z) onZone(z);
+                    if (b != null && hit(e.getX(), e.getY()) == b) onButton(b);
                     return true;
                 case MotionEvent.ACTION_CANCEL:
-                    pressed = null; invalidate();
+                    pressed = null;
                     return true;
             }
             return super.onTouchEvent(e);
         }
     }
 
-    void onZone(Zone z) {
-        switch (z.id) {
+    void onButton(Btn b) {
+        switch (b.id) {
             case Z_PLAY: play(); break;
             case Z_MULTI:
                 Toast.makeText(this, "Multijogador chega numa próxima versão. Por enquanto: você contra a CPU.", Toast.LENGTH_SHORT).show();
@@ -268,46 +288,62 @@ public class LauncherActivity extends Activity {
         }
     }
 
-    /** Loading screen artwork with a live progress bar over the drawn one. */
-    static final class LoadingView extends ArtView {
+    /** Loading screen: scenery + logo + live progress bar + tip. */
+    static final class LoadingView extends SceneView {
         float progress;
-        final RectF bar = new RectF(398, 748, 1272, 786); // inner area of the bar in the artwork
-        final Paint back = new Paint(Paint.ANTI_ALIAS_FLAG);
-        final Paint fill = new Paint(Paint.ANTI_ALIAS_FLAG);
-        final Paint stripe = new Paint(Paint.ANTI_ALIAS_FLAG);
-        final long start = SystemClock.uptimeMillis();
+        final Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
+        final String tip = TIPS[(int) (System.currentTimeMillis() / 1000 % TIPS.length)];
 
-        LoadingView(Context c) {
-            super(c, R.drawable.loading_bg);
-            back.setColor(Color.rgb(26, 20, 44));
-            stripe.setColor(Color.argb(70, 255, 255, 255));
-        }
+        LoadingView(Context c) { super(c); }
 
-        void setProgress(float p) { progress = Math.max(0, Math.min(1, p)); invalidate(); }
+        void setProgress(float v) { progress = Math.max(0, Math.min(1, v)); invalidate(); }
 
         @Override
         protected void onDraw(Canvas c) {
-            drawArt(c);
-            RectF r = toScreen(bar);
-            float rad = r.height() * 0.3f;
-            c.drawRoundRect(r, rad, rad, back);
-            if (progress > 0.001f) {
-                RectF f = new RectF(r.left, r.top, r.left + r.width() * progress, r.bottom);
-                fill.setShader(new LinearGradient(0, f.top, 0, f.bottom,
-                    Color.rgb(120, 240, 90), Color.rgb(50, 190, 40), Shader.TileMode.CLAMP));
-                c.drawRoundRect(f, rad, rad, fill);
-                c.save();
-                c.clipRect(f);
-                float sw = r.height() * 0.7f;
-                float shift = ((SystemClock.uptimeMillis() - start) / 18f) % (sw * 2);
+            drawScene(c, true);
+            int w = getWidth(), h = getHeight();
+            drawLogo(c, w / 2f, 20 * u, Math.min(w * 0.55f, 700 * u), h * 0.46f);
+            p.setTypeface(font);
+            p.setTextAlign(Paint.Align.CENTER);
+            p.setTextSize(30 * u);
+            p.setColor(Color.WHITE);
+            p.setShadowLayer(4 * u, 0, 2 * u, Color.argb(160, 0, 0, 0));
+            c.drawText("CARREGANDO…", w / 2f, h * 0.70f, p);
+            p.clearShadowLayer();
+            float bw = Math.min(w * 0.55f, 900 * u), bh = 30 * u;
+            RectF bar = new RectF(w / 2f - bw / 2, h * 0.74f, w / 2f + bw / 2, h * 0.74f + bh);
+            p.setShader(null);
+            p.setColor(Color.rgb(20, 14, 40));
+            c.drawRoundRect(bar, bh / 2, bh / 2, p);
+            p.setStyle(Paint.Style.STROKE); p.setStrokeWidth(3 * u); p.setColor(Color.rgb(170, 160, 230));
+            c.drawRoundRect(bar, bh / 2, bh / 2, p);
+            p.setStyle(Paint.Style.FILL);
+            if (progress > 0.01f) {
+                RectF f = new RectF(bar.left + 4 * u, bar.top + 4 * u, bar.left + 4 * u + (bar.width() - 8 * u) * progress, bar.bottom - 4 * u);
+                p.setShader(new LinearGradient(0, f.top, 0, f.bottom, Color.rgb(130, 245, 90), Color.rgb(50, 190, 40), Shader.TileMode.CLAMP));
+                c.drawRoundRect(f, f.height() / 2, f.height() / 2, p);
+                p.setShader(null);
+                c.save(); c.clipRect(f);
+                p.setColor(Color.argb(60, 255, 255, 255));
+                float sw = bh, shift = ((SystemClock.uptimeMillis() - t0) / 18f) % (sw * 2);
                 for (float x = f.left - sw * 2 + shift; x < f.right + sw; x += sw * 2) {
-                    android.graphics.Path p = new android.graphics.Path();
-                    p.moveTo(x, f.bottom); p.lineTo(x + sw, f.bottom);
-                    p.lineTo(x + sw * 2, f.top); p.lineTo(x + sw, f.top); p.close();
-                    c.drawPath(p, stripe);
+                    Path path = new Path();
+                    path.moveTo(x, f.bottom); path.lineTo(x + sw, f.bottom); path.lineTo(x + sw * 2, f.top); path.lineTo(x + sw, f.top); path.close();
+                    c.drawPath(path, p);
                 }
                 c.restore();
             }
+            p.setTextSize(22 * u);
+            p.setColor(Color.rgb(255, 205, 60));
+            String head = "DICA:  ";
+            p.setTextAlign(Paint.Align.LEFT);
+            float tw = p.measureText(head);
+            Paint p2 = new Paint(p);
+            p2.setColor(Color.WHITE);
+            float total = tw + p2.measureText(tip);
+            float x0 = w / 2f - total / 2;
+            c.drawText(head, x0, h * 0.86f, p);
+            c.drawText(tip, x0 + tw, h * 0.86f, p2);
             postInvalidateOnAnimation();
         }
     }
