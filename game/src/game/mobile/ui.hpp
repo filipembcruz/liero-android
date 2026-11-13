@@ -15,7 +15,7 @@ enum Align { Left = 0, Center = 1, Right = 2 };
 enum Icon
 {
 	INone, IFire, IRocket, IJump, IRope, ISwap, IDig, IOk, IBack, IPause,
-	ISkull, IHeart, IClock, IGear, IPlay, IRestart, IExit, IJoystick, IWeapon, ICrown, IDice
+	ISkull, IHeart, IClock, IGear, IPlay, IRestart, IExit, IJoystick, IWeapon, ICrown, IDice, ISliders, IMap, ITrophy, IPeople
 };
 
 bool init(SDL_Renderer* r, char const* fontPath);

@@ -11,7 +11,7 @@ import android.graphics.Typeface;
 
 /** Vector icons and the chunky game-style buttons of the start screen. */
 final class Icons {
-    static final int PLAY = 1, PEOPLE = 2, TOOLS = 3, MAP = 4, GEAR = 5, BARS = 6, TROPHY = 7;
+    static final int PLAY = 1, PEOPLE = 2, TOOLS = 3, MAP = 4, GEAR = 5, BARS = 6, TROPHY = 7, BACK = 8, RESTART = 9;
 
     static void button(Canvas c, Paint p, LauncherActivity.Btn b, boolean pressed, float u, Typeface font) {
         RectF r = new RectF(b.r);
@@ -46,11 +46,17 @@ final class Icons {
             return;
         }
         p.setTypeface(font);
-        p.setTextSize(r.height() * (b.primary ? 0.46f : 0.4f));
+        float ts = r.height() * (b.primary ? 0.42f : 0.38f);
+        p.setTextSize(ts);
         p.setTextAlign(Paint.Align.LEFT);
         float tw = p.measureText(b.label);
-        float is = r.height() * 0.28f;
+        float is = r.height() * 0.26f;
         float total = tw + is * 2.6f;
+        float avail = r.width() - 2 * Math.max(18 * u, r.height() * 0.3f);
+        if (total > avail) {
+            float k = avail / total;
+            ts *= k; is *= k; p.setTextSize(ts); tw = p.measureText(b.label); total = tw + is * 2.6f;
+        }
         float x0 = r.centerX() - total / 2;
         draw(c, p, b.icon, x0 + is, r.centerY(), is, text);
         p.setColor(text);
@@ -114,9 +120,9 @@ final class Icons {
                     c.drawRoundRect(new RectF(x - s * 0.2f, y - s * 1.0f, x + s * 0.2f, y - s * 0.55f), s * 0.06f, s * 0.06f, p);
                     c.restore();
                 }
-                c.drawCircle(x, y, s * 0.68f, p);
-                p.setColor(Color.rgb(80, 60, 160));
-                c.drawCircle(x, y, s * 0.3f, p);
+                p.setStyle(Paint.Style.STROKE); p.setStrokeWidth(s * 0.38f);
+                c.drawCircle(x, y, s * 0.5f, p);
+                p.setStyle(Paint.Style.FILL);
                 break;
             case BARS:
                 c.drawRoundRect(new RectF(x - s * 0.9f, y - s * 0.1f, x - s * 0.4f, y + s * 0.85f), s * 0.08f, s * 0.08f, p);
@@ -135,6 +141,28 @@ final class Icons {
                 c.drawArc(new RectF(x - s * 1.05f, y - s * 0.75f, x - s * 0.45f, y - s * 0.1f), 90, 180, false, p);
                 c.drawArc(new RectF(x + s * 0.45f, y - s * 0.75f, x + s * 1.05f, y - s * 0.1f), 270, 180, false, p);
                 break;
+            case BACK:
+                p.setStyle(Paint.Style.STROKE); p.setStrokeWidth(s * 0.26f);
+                c.drawLine(x - s * 0.75f, y, x + s * 0.75f, y, p);
+                c.drawLine(x - s * 0.75f, y, x - s * 0.15f, y - s * 0.6f, p);
+                c.drawLine(x - s * 0.75f, y, x - s * 0.15f, y + s * 0.6f, p);
+                break;
+            case RESTART: {
+                p.setStyle(Paint.Style.STROKE); p.setStrokeWidth(s * 0.26f);
+                float R = s * 0.72f;
+                c.drawArc(new RectF(x - R, y - R, x + R, y + R), -45, 280, false, p);
+                p.setStyle(Paint.Style.FILL);
+                double a = Math.toRadians(235);
+                float ex = x + (float) Math.cos(a) * R, ey = y + (float) Math.sin(a) * R;
+                float tx = (float) -Math.sin(a), ty = (float) Math.cos(a), nx = (float) Math.cos(a), ny = (float) Math.sin(a);
+                float L = s * 0.55f, W = s * 0.45f;
+                path.moveTo(ex + tx * L * 0.75f, ey + ty * L * 0.75f);
+                path.lineTo(ex + nx * W - tx * L * 0.25f, ey + ny * W - ty * L * 0.25f);
+                path.lineTo(ex - nx * W - tx * L * 0.25f, ey - ny * W - ty * L * 0.25f);
+                path.close();
+                c.drawPath(path, p);
+                break;
+            }
         }
         p.setStyle(Paint.Style.FILL);
     }

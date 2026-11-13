@@ -23,7 +23,45 @@ final class Prefs {
         "CPU original do Liero 1.33",
         "IA preditiva (olha 0,5 s à frente)",
         "IA preditiva completa (2 s à frente)" };
-    static final int[] LIVES = { 3, 5, 10, 15, 20, 30 };
+    static final int[] LIVES = { 1, 3, 5, 10, 15, 20, 30, 50, 99 };
+    static final String[] VISUALS = { "Clássico", "Suave", "HD", "Toupeiras", "Besouros", "Robôs" };
+    static final String[] VISUAL_INFO = {
+        "Pixels originais do Liero", "Pixels suavizados (Scale2x)", "Vermes, armas e cenário desenhados",
+        "Toupeiras com sucata numa mina", "Besouros com armas orgânicas", "Robôs com armas de energia" };
+    static final String[] PAD_ACTIONS = { "Atirar", "Pular", "Corda ninja", "Trocar (segurar)", "Próxima arma", "Arma anterior", "Cavar", "Pausa" };
+    static final String[] PAD_KEYS = { "padFire", "padJump", "padRope", "padChange", "padNext", "padPrev", "padDig", "padPause" };
+    static final int[] PAD_DEFAULT = { 101, 0, 100, 1, 10, 9, 3, 6 };
+
+    static String padName(int code) {
+        switch (code) {
+            case 0: return "A"; case 1: return "B"; case 2: return "X"; case 3: return "Y";
+            case 4: return "Select/Back"; case 5: return "Guide"; case 6: return "Start";
+            case 7: return "L3"; case 8: return "R3"; case 9: return "LB / L1"; case 10: return "RB / R1";
+            case 100: return "LT / L2"; case 101: return "RT / R2";
+            case -1: return "—";
+            default: return "Botão " + code;
+        }
+    }
+
+    /** Android key code -> SDL game controller button code (as stored in mobile.cfg), or -1. */
+    static int padCode(int keyCode) {
+        switch (keyCode) {
+            case android.view.KeyEvent.KEYCODE_BUTTON_A: return 0;
+            case android.view.KeyEvent.KEYCODE_BUTTON_B: return 1;
+            case android.view.KeyEvent.KEYCODE_BUTTON_X: return 2;
+            case android.view.KeyEvent.KEYCODE_BUTTON_Y: return 3;
+            case android.view.KeyEvent.KEYCODE_BUTTON_SELECT: return 4;
+            case android.view.KeyEvent.KEYCODE_BUTTON_MODE: return 5;
+            case android.view.KeyEvent.KEYCODE_BUTTON_START: return 6;
+            case android.view.KeyEvent.KEYCODE_BUTTON_THUMBL: return 7;
+            case android.view.KeyEvent.KEYCODE_BUTTON_THUMBR: return 8;
+            case android.view.KeyEvent.KEYCODE_BUTTON_L1: return 9;
+            case android.view.KeyEvent.KEYCODE_BUTTON_R1: return 10;
+            case android.view.KeyEvent.KEYCODE_BUTTON_L2: return 100;
+            case android.view.KeyEvent.KEYCODE_BUTTON_R2: return 101;
+            default: return -1;
+        }
+    }
 
     private final File file;
     private final Map<String, String> map = new LinkedHashMap<>();
@@ -41,6 +79,8 @@ final class Prefs {
         }
     }
 
+    int get(String k, int def) { return i(k, def); }
+
     private int i(String k, int def) {
         try { return Integer.parseInt(map.get(k)); } catch (Exception e) { return def; }
     }
@@ -56,7 +96,7 @@ final class Prefs {
     int fov() { return i("fov", 1); }
     int touchShow() { return Math.max(0, Math.min(2, i("touchShow", 0))); }
     int theme() { return Math.max(0, Math.min(2, i("theme", 0))); }
-    int visual() { return Math.max(0, Math.min(2, i("smooth", 2))); }
+    int visual() { return Math.max(0, Math.min(VISUALS.length - 1, i("smooth", 2))); }
 
     final class Editor {
         Editor putString(String k, String v) { map.put(k, v.replace('\n', ' ')); return this; }

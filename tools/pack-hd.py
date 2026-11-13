@@ -157,7 +157,7 @@ def seamless(tex, size):
     return Image.composite(tex, off2, mask).convert("RGBA")
 
 
-def main():
+def pack(src, out, skin=False):
     entries = []
 
     def add(name, img, anchor=None):
@@ -167,7 +167,7 @@ def main():
         entries.append((name, img, int(ax), int(ay)))
 
     # --- worm (4x3 grid): body frames + guns + hand
-    worm = key_mask(Image.open(os.path.join(SRC, "worm_sheet.png")), shadows=True)
+    worm = key_mask(Image.open(os.path.join(src, "worm_sheet.png")), shadows=True)
     cells = grid_cells(worm, 4, 3)
     names = ["worm_idle", "worm_walk1", "worm_walk2", "worm_walk3", "worm_walk4", "worm_jump", "worm_hurt", "worm_rope",
              "gun_bazooka", "gun_mgun", "worm_hand", None]
@@ -193,7 +193,7 @@ def main():
             add(n, c, (w * 0.33, h * 0.55))
 
     # --- guns (4x2)
-    guns = key_mask(Image.open(os.path.join(SRC, "guns_sheet.png")))
+    guns = key_mask(Image.open(os.path.join(src, "guns_sheet.png")))
     gnames = ["gun_pistol", "gun_rifle", "gun_shotgun", "gun_minigun", "gun_flamer", "gun_glauncher", "gun_laser", "gun_cannon"]
     for c, n in zip(by_centroid(guns, 4, 2, 60), gnames):
         if c is None:
@@ -203,7 +203,7 @@ def main():
         add(n, c, (w * 0.32, h * 0.6))
 
     # --- fx (6x3)
-    fx = key_mask(Image.open(os.path.join(SRC, "fx_sheet.png")))
+    fx = key_mask(Image.open(os.path.join(src, "fx_sheet.png")))
     fnames = ["p_rocket", "p_grenade", "p_mine", "p_mine_lit", "p_cluster", "p_bignuke",
               "exp1", "exp2", "exp3", "exp4", "exp5", "exp6",
               "smoke1", "smoke2", "smoke3", "bonus_health", "bonus_weapon", "spark"]
@@ -215,7 +215,7 @@ def main():
         add(n, c)
 
     # --- projectiles (6x4)
-    pr = key_mask(Image.open(os.path.join(SRC, "projectiles_sheet.png")))
+    pr = key_mask(Image.open(os.path.join(src, "projectiles_sheet.png")))
     pnames = ["p_missile", "p_minirocket", "p_hellraider", "p_cannonball", "p_dart", "p_dynamite",
               "p_banana", "p_spikeball", "p_greenball", "p_larpa", "p_zimm", "p_crackler",
               "p_floatmine", "p_bouncymine", "p_boobytrap", "p_grasshopper", "p_mininuke", "p_doomsday",
@@ -225,53 +225,59 @@ def main():
             print("missing", n); continue
         add(n, fit(trim(c), 140))
 
-    # --- touch action buttons (3x2)
-    bt = key_mask(Image.open(os.path.join(SRC, "buttons_sheet.png")))
-    for c, n in zip(by_centroid(bt, 3, 2, 60), ["btn_aim", "btn_swap", "btn_dig", "btn_jump", "btn_fire", "btn_rope"]):
-        if c is not None:
-            add(n, fit(trim(c), 256))
+    # --- touch action buttons (3x2), base set only
+    if not skin:
+        bt = key_mask(Image.open(os.path.join(src, "buttons_sheet.png")))
+        for c, n in zip(by_centroid(bt, 3, 2, 60), ["btn_aim", "btn_swap", "btn_dig", "btn_jump", "btn_fire", "btn_rope"]):
+            if c is not None:
+                add(n, fit(trim(c), 256))
 
     # --- background + textures (opaque)
-    bg = Image.open(os.path.join(SRC, "cave_background.png")).convert("RGB")
+    bg = Image.open(os.path.join(src, "background.png" if skin else "cave_background.png")).convert("RGB")
     bg = bg.resize((1280, int(1280 * bg.height / bg.width)), Image.LANCZOS)
     add("bg_cave", bg.convert("RGBA"))
-    tx = Image.open(os.path.join(SRC, "textures.png")).convert("RGB")
+    tx = Image.open(os.path.join(src, "textures.png")).convert("RGB")
     W, H = tx.size
     add("tex_dirt", seamless(tx.crop((0, 0, W // 2, H)), 384))
     add("tex_rock", seamless(tx.crop((W // 2, 0, W, H)), 384))
 
-    # --- extra HD themes: art/source/themes/<name>/{background.png,textures.png}
-    for theme in ("volcano", "ice"):
-        d = os.path.join(SRC, "themes", theme)
-        bgp, txp = os.path.join(d, "background.png"), os.path.join(d, "textures.png")
-        if not (os.path.exists(bgp) and os.path.exists(txp)):
-            print("theme missing:", theme); continue
-        b = Image.open(bgp).convert("RGB")
-        b = b.resize((1280, int(1280 * b.height / b.width)), Image.LANCZOS)
-        add("bg_" + theme, b.convert("RGBA"))
-        t = Image.open(txp).convert("RGB")
-        W, H = t.size
-        add("tex_dirt_" + theme, seamless(t.crop((0, 0, W // 2, H)), 384))
-        add("tex_rock_" + theme, seamless(t.crop((W // 2, 0, W, H)), 384))
-
-    with open(OUT, "wb") as f:
+    with open(out, "wb") as f:
         f.write(b"LHD1" + struct.pack("<H", len(entries)))
         for name, img, ax, ay in entries:
             raw = img.tobytes()
             z = zlib.compress(raw, 9)
             nb = name.encode()
             f.write(struct.pack("<B", len(nb)) + nb + struct.pack("<HHhhI", img.width, img.height, ax, ay, len(z)) + z)
-    print(f"{len(entries)} entries -> {OUT} ({os.path.getsize(OUT) // 1024} KB)")
+    print(f"{len(entries)} entries -> {out} ({os.path.getsize(out) // 1024} KB)")
 
     if "--preview" in sys.argv:
-        out = sys.argv[sys.argv.index("--preview") + 1]
+        pv = sys.argv[sys.argv.index("--preview") + 1]
+        pv = pv if not skin else pv.replace(".png", "_" + os.path.basename(src) + ".png")
         cols = 10; cell = 200
         rows = (len(entries) + cols - 1) // cols
         sheet = Image.new("RGBA", (cols * cell, rows * cell), (40, 30, 70, 255))
         for k, (name, img, ax, ay) in enumerate(entries):
             t = img.copy(); t.thumbnail((cell - 10, cell - 10))
             sheet.alpha_composite(t, ((k % cols) * cell + 5, (k // cols) * cell + 5))
-        sheet.convert("RGB").save(out)
+        sheet.convert("RGB").save(pv)
+
+
+SKINS = ("mole", "bug", "bot")  # Toupeiras, Besouros, Robôs -> game/ui/hd_<id>.bin
+SKIN_FILES = ("worm_sheet.png", "guns_sheet.png", "projectiles_sheet.png", "fx_sheet.png", "background.png", "textures.png")
+
+
+def main():
+    only = [a for a in sys.argv[1:] if a in ("base",) + SKINS]
+    if not only or "base" in only:
+        pack(SRC, OUT)
+    for sk in SKINS:
+        if only and sk not in only:
+            continue
+        d = os.path.join(SRC, "skins", sk)
+        missing = [f for f in SKIN_FILES if not os.path.exists(os.path.join(d, f))]
+        if missing:
+            print("skin", sk, "missing:", ", ".join(missing)); continue
+        pack(d, os.path.join(ROOT, "game", "ui", "hd_" + sk + ".bin"), skin=True)
 
 
 if __name__ == "__main__":

@@ -217,7 +217,7 @@ std::string pct(int v) { return std::to_string(v) + "%"; }
 void drawWeaponIcon(Common& common, int w, SDL_FRect box)
 {
 	int iw = 0, ih = 0;
-	SDL_Texture* t = config.smooth == 2 ? hd::weaponIcon(common, w, &iw, &ih) : nullptr;
+	SDL_Texture* t = config.smooth >= 2 ? hd::weaponIcon(common, w, &iw, &ih) : nullptr;
 	if (t)
 	{
 		float k = std::min(box.w / iw, box.h / ih);
@@ -384,14 +384,15 @@ void settingsScreen(Game* game)
 		{
 			static const char* fv[3] = { "Perto", "Amplo", "Máximo" };
 			if ((d = stepper(row(), "Campo de visão", fv[config.fov], "Amplo/Máximo mostram mais do mapa"))) { config.fov = std::max(0, std::min(2, config.fov + d)); }
-			static const char* vn[3] = { "Clássico", "Suave", "HD" };
-			if ((d = stepper(row(), "Visual", vn[std::max(0, std::min(2, config.smooth))], "HD: vermes, armas, explosões, terreno e fundo novos"))) { config.smooth = std::max(0, std::min(2, config.smooth + d)); if (game) view.newGame(*game); }
-			static const char* tn[3] = { "Caverna", "Vulcão", "Gelo" };
-			if ((d = stepper(row(), "Tema (modo HD)", tn[config.theme], "Terreno e fundo do mapa"))) { config.theme = std::max(0, std::min(2, config.theme + d)); if (game) view.newGame(*game); }
+			static const char* vn[6] = { "Clássico", "Suave", "HD", "Toupeiras", "Besouros", "Robôs" };
+			static const char* vi[6] = { "Pixels originais do Liero", "Pixels suavizados (Scale2x)", "Vermes, armas e cenário desenhados",
+				"Toupeiras com sucata numa mina", "Besouros com armas orgânicas", "Robôs com armas de energia" };
+			int vs = std::max(0, std::min(5, config.smooth));
+			if ((d = stepper(row(), "Visual", vn[vs], vi[vs]))) { config.smooth = std::max(0, std::min(5, config.smooth + d)); if (game) view.newGame(*game); }
 			if ((d = stepper(row(), "Minimapa", config.minimap ? "Ligado" : "Desligado"))) { config.minimap = d > 0 ? 1 : 0; }
 			if ((d = stepper(row(), "Opacidade do HUD", pct(config.hudOpacity), "Placar, minimapa e barra de armas"))) { config.hudOpacity = std::max(20, std::min(100, config.hudOpacity + d * 10)); }
-			if ((d = stepper(row(), "HUD transparente sobre você", config.hudAutoFade ? "Ligado" : "Desligado", "O painel some quando o seu verme passa por baixo"))) { config.hudAutoFade = d > 0 ? 1 : 0; }
-			if ((d = stepper(row(), "Seta sobre o seu verme", config.marker ? "Ligada" : "Desligada"))) { config.marker = d > 0 ? 1 : 0; }
+			if ((d = stepper(row(), "HUD transparente sobre você", config.hudAutoFade ? "Ligado" : "Desligado", "O painel some quando o seu personagem passa por baixo"))) { config.hudAutoFade = d > 0 ? 1 : 0; }
+			if ((d = stepper(row(), "Seta sobre o seu personagem", config.marker ? "Ligada" : "Desligada"))) { config.marker = d > 0 ? 1 : 0; }
 		}
 		if (config.fov != prevFov && game)
 		{
@@ -425,7 +426,7 @@ MenuResult pauseMenu(Game* game, bool gameRunning, char lastResult)
 		if (F.quit) return MenuQuit;
 		background(game, gameRunning ? 0.62f : 0.72f);
 		float s = F.s;
-		float pw = 560 * s, ph = (gameRunning ? 520 : 470) * s;
+		float pw = 600 * s, ph = (gameRunning ? 520 : 450) * s;
 		SDL_FRect pnl = { (F.w - pw) / 2, (F.h - ph) / 2, pw, ph };
 		ui::panel(F.r, pnl, s, 0.92f);
 
@@ -439,7 +440,7 @@ MenuResult pauseMenu(Game* game, bool gameRunning, char lastResult)
 			ui::text(F.r, buf, pnl.x + pw / 2, pnl.y + 100 * s, 22 * s, ui::rgba(180, 200, 255), ui::Center);
 		}
 
-		float bx = pnl.x + 50 * s, bw = pw - 100 * s, bh = 66 * s, y = pnl.y + 136 * s, gap = 14 * s;
+		float bx = pnl.x + 56 * s, bw = pw - 112 * s, bh = 62 * s, y = pnl.y + 140 * s, gap = 16 * s;
 		auto next = [&]() { SDL_FRect r = { bx, y, bw, bh }; y += bh + gap; return r; };
 		if (gameRunning)
 		{
@@ -452,8 +453,8 @@ MenuResult pauseMenu(Game* game, bool gameRunning, char lastResult)
 		}
 		if (button(next(), "CONFIGURAÇÕES", false, ui::IGear)) { settingsScreen(game); F.focus = 0; }
 		SDL_FRect half = next();
-		SDL_FRect a = { half.x, half.y, half.w / 2 - 7 * s, half.h }, b = { half.x + half.w / 2 + 7 * s, half.y, half.w / 2 - 7 * s, half.h };
-		if (button(a, "AVANÇADO", false, ui::IWeapon)) return MenuOriginal;
+		SDL_FRect a = { half.x, half.y, half.w / 2 - 8 * s, half.h }, b = { half.x + half.w / 2 + 8 * s, half.y, half.w / 2 - 8 * s, half.h };
+		if (button(a, "AVANÇADO", false, ui::ISliders)) return MenuOriginal;
 		if (button(b, "SAIR", false, ui::IExit)) return MenuQuit;
 		if (!gameRunning && F.back) return MenuQuit;
 		ui::text(F.r, "Avançado = menu original do Liero (inglês)", pnl.x + pw / 2, pnl.y + ph - 24 * s, 16 * s, ui::rgba(150, 160, 210), ui::Center, false);

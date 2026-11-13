@@ -68,7 +68,7 @@ void loadConfig()
 	c.touchOpacity = clampi(c.touchOpacity, 10, 100);
 	c.deadZone = clampi(c.deadZone, 5, 60);
 	c.fov = clampi(c.fov, 0, 2);
-	c.smooth = clampi(c.smooth, 0, 2);
+	c.smooth = clampi(c.smooth, 0, 5);
 	c.touchShow = clampi(c.touchShow, 0, 2);
 	c.theme = clampi(c.theme, 0, 2);
 	c.hudOpacity = clampi(c.hudOpacity, 20, 100);

@@ -33,8 +33,13 @@ struct Spr
 	std::vector<uint32_t> px; // ARGB copy (only kept for recolourable/texture entries)
 };
 
-std::map<std::string, Spr> sprites;
+std::map<std::string, Spr> sprites;     // base HD set (ui/hd.bin)
+std::map<std::string, Spr> skinSprites; // overrides of the current skin (ui/hd_<skin>.bin)
 bool loaded = false;
+int curSkin = 0;                        // 0 = HD, 1.. = extra skins
+SDL_Renderer* rend = nullptr;
+const char* skinFiles[] = { nullptr, "ui/hd_mole.bin", "ui/hd_bug.bin", "ui/hd_bot.bin" };
+const int SkinCount = 4;
 
 // per-game state
 Game* curGame = nullptr;
@@ -66,10 +71,13 @@ struct Theme
 	uint32_t edge;     // colour of the solid edge line (RGB)
 	float edgeK;       // 0 = dark outline (multiply), 1 = coloured glow
 };
-const Theme themes[3] = {
+// Terrain look per skin (HD, Toupeiras, Besouros, Robôs). Textures and background
+// come from the skin's own sprites (same names, see get()).
+const Theme themes[SkinCount] = {
 	{ "bg_cave", "tex_dirt", "tex_rock", 0x0A0612, 150, 0x000000, 0.0f },
-	{ "bg_volcano", "tex_dirt_volcano", "tex_rock_volcano", 0xFF5A10, 120, 0xFF8A20, 0.85f },
-	{ "bg_ice", "tex_dirt_ice", "tex_rock_ice", 0x9FE4FF, 90, 0xE8FAFF, 0.7f },
+	{ "bg_cave", "tex_dirt", "tex_rock", 0x140A04, 160, 0x000000, 0.0f },
+	{ "bg_cave", "tex_dirt", "tex_rock", 0x061008, 150, 0x000000, 0.0f },
+	{ "bg_cave", "tex_dirt", "tex_rock", 0x04101C, 120, 0x40E0FF, 0.55f },
 };
 Theme const* theme = &themes[0];
 
@@ -79,6 +87,11 @@ Common* lookCommon = nullptr;
 
 Spr* get(const char* name)
 {
+	if (curSkin > 0)
+	{
+		auto sk = skinSprites.find(name);
+		if (sk != skinSprites.end() && sk->second.tex) return &sk->second;
+	}
 	auto it = sprites.find(name);
 	return it == sprites.end() || !it->second.tex ? nullptr : &it->second;
 }
@@ -327,9 +340,9 @@ void updateTerrain(Game& g)
 
 bool ready() { return loaded; }
 
-bool load(SDL_Renderer* r, char const* path)
+namespace {
+bool readFile(SDL_Renderer* r, char const* path, std::map<std::string, Spr>& into)
 {
-	if (loaded) return true;
 	SDL_RWops* f = SDL_RWFromFile(path, "rb");
 	if (!f) { SDL_Log("liero: hd assets not found: %s", path); return false; }
 	char magic[4];
@@ -357,11 +370,33 @@ bool load(SDL_Renderer* r, char const* path)
 		bool keep = name.compare(0, 5, "worm_") == 0 || name.compare(0, 4, "tex_") == 0;
 		s.tex = makeTex(r, px, s.w, s.h);
 		if (keep) s.px.swap(px);
-		sprites[name] = std::move(s);
+		into[name] = std::move(s);
 	}
 	SDL_RWclose(f);
-	loaded = !sprites.empty();
-	SDL_Log("liero: hd assets loaded (%d)", (int)sprites.size());
+	SDL_Log("liero: hd assets loaded from %s (%d)", path, (int)into.size());
+	return !into.empty();
+}
+
+// Load the sprites of the skin chosen in the settings (Visual >= 2).
+void ensureSkin()
+{
+	int want = std::max(0, std::min(SkinCount - 1, config.smooth - 2));
+	if (want == curSkin || !rend) return;
+	for (auto& kv : skinSprites)
+		if (kv.second.tex) SDL_DestroyTexture(kv.second.tex);
+	skinSprites.clear();
+	curSkin = want;
+	if (want > 0 && !readFile(rend, skinFiles[want], skinSprites))
+		curSkin = 0;
+	lookCommon = nullptr; // weapon looks are rebuilt (sprite sizes differ)
+}
+} // anon
+
+bool load(SDL_Renderer* r, char const* path)
+{
+	if (loaded) return true;
+	rend = r;
+	loaded = readFile(r, path, sprites);
 	return loaded;
 }
 
@@ -369,8 +404,8 @@ void newGame(SDL_Renderer* r, Game& g)
 {
 	if (!loaded) return;
 	curGame = &g;
-	theme = &themes[std::max(0, std::min(2, config.theme))];
-	if (!get(theme->bg)) theme = &themes[0];
+	ensureSkin();
+	theme = &themes[curSkin];
 	buildLooks(*g.common);
 	for (int w = 0; w < 2; ++w)
 		for (int f = 0; f < 8; ++f)
@@ -584,6 +619,7 @@ bool const* weaponMask(Common& common)
 SDL_Texture* weaponIcon(Common& common, int wi, int* w, int* h)
 {
 	if (!loaded) return nullptr;
+	ensureSkin();
 	buildLooks(common);
 	if (wi < 0 || wi >= (int)looks.size()) return nullptr;
 	Spr* s = looks[wi].proj ? get(looks[wi].proj) : nullptr;

@@ -168,6 +168,24 @@ void ring(SDL_Renderer* r, float cx, float cy, float rad, float thick, SDL_Color
 	SDL_RenderGeometry(r, NULL, v.data(), (int)v.size(), idx.data(), (int)idx.size());
 }
 
+static void arc(SDL_Renderer* r, float cx, float cy, float rad, float a0, float a1, float thick, SDL_Color c)
+{
+	int seg = std::max(12, (int)(std::fabs(a1 - a0) * rad / 3.0f));
+	std::vector<SDL_Vertex> v;
+	std::vector<int> idx;
+	for (int i = 0; i <= seg; ++i)
+	{
+		float a = a0 + (a1 - a0) * i / seg, ca = std::cos(a), sa = std::sin(a);
+		SDL_Vertex o, in;
+		o.position = { cx + ca * (rad + thick / 2), cy + sa * (rad + thick / 2) };
+		in.position = { cx + ca * (rad - thick / 2), cy + sa * (rad - thick / 2) };
+		setColor(o, c); setColor(in, c);
+		v.push_back(o); v.push_back(in);
+		if (i < seg) { int b = i * 2; idx.insert(idx.end(), { b, b + 1, b + 2, b + 1, b + 3, b + 2 }); }
+	}
+	SDL_RenderGeometry(r, NULL, v.data(), (int)v.size(), idx.data(), (int)idx.size());
+}
+
 void tri(SDL_Renderer* r, SDL_FPoint a, SDL_FPoint b, SDL_FPoint c, SDL_Color col)
 {
 	SDL_Vertex v[3];
@@ -296,13 +314,22 @@ void button(SDL_Renderer* r, SDL_FRect rc, float s, std::string const& label, bo
 	if (pressed)
 		roundRect(r, b, rad, rgba(255, 255, 255, 0.15f));
 	SDL_Color tc = primary ? rgba(60, 30, 10, ea) : rgba(255, 255, 255, ea);
-	float px = std::min(b.h * 0.42f, 34 * s);
+	float px = std::min(b.h * 0.36f, 28 * s);
+	float pad = std::max(18 * s, b.h * 0.3f);
+	float gapI = px * 0.5f;
+	float iconW = ic != INone ? px * 1.3f : 0;
 	float tw = textWidth(label, px);
-	float iconW = ic != INone ? px * 1.5f : 0;
-	float x0 = b.x + (b.w - tw - iconW) / 2;
+	float avail = b.w - 2 * pad;
+	if (tw + iconW + (ic != INone ? gapI : 0) > avail)
+	{
+		float k = avail / (tw + iconW + (ic != INone ? gapI : 0));
+		px *= k; tw *= k; iconW *= k; gapI *= k;
+	}
+	float total = tw + (ic != INone ? iconW + gapI : 0);
+	float x0 = b.x + (b.w - total) / 2;
 	if (ic != INone)
-		icon(r, ic, x0 + px * 0.55f, b.y + b.h / 2, px * 0.7f, tc);
-	text(r, label, x0 + iconW, b.y + b.h / 2, px, tc, Left, !primary);
+		icon(r, ic, x0 + iconW / 2, b.y + b.h / 2, iconW * 0.5f, tc);
+	text(r, label, x0 + (ic != INone ? iconW + gapI : 0), b.y + b.h / 2, px, tc, Left, !primary);
 }
 
 void wormHead(SDL_Renderer* r, float cx, float cy, float rad, SDL_Color body)
@@ -362,12 +389,24 @@ void icon(SDL_Renderer* r, int ic, float x, float y, float s, SDL_Color c)
 		line(r, x + s * 0.3f, y - s * 0.72f, x + s * 0.3f, y - s * 0.95f, t, c);
 		break;
 	case ISwap:
-	case IRestart:
 		ring(r, x, y, s * 0.62f, t, c);
 		tri(r, { x + s * 0.62f - s * 0.28f, y - s * 0.05f }, { x + s * 0.62f + s * 0.28f, y - s * 0.05f }, { x + s * 0.62f, y + s * 0.32f }, c);
-		if (ic == ISwap)
-			tri(r, { x - s * 0.62f - s * 0.28f, y + s * 0.05f }, { x - s * 0.62f + s * 0.28f, y + s * 0.05f }, { x - s * 0.62f, y - s * 0.32f }, c);
+		tri(r, { x - s * 0.62f - s * 0.28f, y + s * 0.05f }, { x - s * 0.62f + s * 0.28f, y + s * 0.05f }, { x - s * 0.62f, y - s * 0.32f }, c);
 		break;
+	case IRestart:
+	{
+		// open circular arrow, clockwise, arrow head at the end of the stroke
+		float R = s * 0.56f, th = t * 1.35f;
+		float a0 = -Pi * 0.25f, a1 = Pi * 1.35f;
+		arc(r, x, y, R, a0, a1 - 0.12f, th, c);
+		float ex = x + std::cos(a1) * R, ey = y + std::sin(a1) * R;
+		float tx = -std::sin(a1), ty = std::cos(a1);
+		float nx = std::cos(a1), ny = std::sin(a1);
+		float L = s * 0.45f, W = s * 0.36f;
+		tri(r, { ex + tx * L * 0.75f, ey + ty * L * 0.75f }, { ex + nx * W - tx * L * 0.25f, ey + ny * W - ty * L * 0.25f },
+			{ ex - nx * W - tx * L * 0.25f, ey - ny * W - ty * L * 0.25f }, c);
+		break;
+	}
 	case IDig:
 		// explosion burst
 		for (int i = 0; i < 10; ++i)
@@ -448,6 +487,36 @@ void icon(SDL_Renderer* r, int ic, float x, float y, float s, SDL_Color c)
 		fillCircle(r, x - s * 0.25f, y - s * 0.25f, s * 0.12f, c);
 		fillCircle(r, x, y, s * 0.12f, c);
 		fillCircle(r, x + s * 0.25f, y + s * 0.25f, s * 0.12f, c);
+		break;
+	case ISliders:
+		for (int k = 0; k < 3; ++k)
+		{
+			float yy = y + (k - 1) * s * 0.5f;
+			line(r, x - s * 0.7f, yy, x + s * 0.7f, yy, t, c);
+			float kx = x + (k == 0 ? 0.3f : k == 1 ? -0.35f : 0.1f) * s;
+			fillCircle(r, kx, yy, s * 0.2f, c);
+		}
+		break;
+	case IMap:
+		tri(r, { x - s * 0.75f, y - s * 0.45f }, { x - s * 0.25f, y - s * 0.6f }, { x - s * 0.25f, y + s * 0.6f }, c);
+		tri(r, { x - s * 0.75f, y - s * 0.45f }, { x - s * 0.25f, y + s * 0.6f }, { x - s * 0.75f, y + s * 0.75f }, c);
+		tri(r, { x + s * 0.25f, y - s * 0.6f }, { x + s * 0.75f, y - s * 0.75f }, { x + s * 0.75f, y + s * 0.45f }, c);
+		tri(r, { x + s * 0.25f, y - s * 0.6f }, { x + s * 0.75f, y + s * 0.45f }, { x + s * 0.25f, y + s * 0.6f }, c);
+		tri(r, { x - s * 0.18f, y - s * 0.6f }, { x + s * 0.18f, y - s * 0.45f }, { x + s * 0.18f, y + s * 0.75f }, rgba(c.r, c.g, c.b, c.a / 255.0f * 0.55f));
+		tri(r, { x - s * 0.18f, y - s * 0.6f }, { x + s * 0.18f, y + s * 0.75f }, { x - s * 0.18f, y + s * 0.6f }, rgba(c.r, c.g, c.b, c.a / 255.0f * 0.55f));
+		break;
+	case ITrophy:
+		roundRect(r, { x - s * 0.5f, y - s * 0.7f, s * 1.0f, s * 0.75f }, s * 0.3f, c);
+		arc(r, x - s * 0.5f, y - s * 0.35f, s * 0.22f, Pi * 0.5f, Pi * 1.5f, t, c);
+		arc(r, x + s * 0.5f, y - s * 0.35f, s * 0.22f, -Pi * 0.5f, Pi * 0.5f, t, c);
+		roundRect(r, { x - s * 0.1f, y, s * 0.2f, s * 0.4f }, s * 0.05f, c);
+		roundRect(r, { x - s * 0.4f, y + s * 0.4f, s * 0.8f, s * 0.25f }, s * 0.08f, c);
+		break;
+	case IPeople:
+		fillCircle(r, x - s * 0.3f, y - s * 0.35f, s * 0.25f, c);
+		fillCircle(r, x + s * 0.35f, y - s * 0.3f, s * 0.22f, c);
+		roundRect(r, { x - s * 0.72f, y, s * 0.84f, s * 0.6f }, s * 0.28f, c);
+		roundRect(r, { x + s * 0.02f, y + s * 0.03f, s * 0.68f, s * 0.55f }, s * 0.25f, c);
 		break;
 	default:
 		break;

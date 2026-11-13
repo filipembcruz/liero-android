@@ -216,7 +216,7 @@ void View::ensureIcons(SDL_Renderer* r, Common& common)
 
 bool View::hdOn() const
 {
-	return config.smooth == 2 && hd::ready();
+	return config.smooth >= 2 && hd::ready();
 }
 
 void View::present(SDL_Renderer* r, Game& g, bool hud)
