@@ -437,7 +437,7 @@ void View::drawHud(SDL_Renderer* r, Game& g)
 		float nmPx = std::min(20 * s, (sx - x0 - 8 * s) / std::max(1.0f, ui::textWidth(nm, 1.0f)));
 		ui::text(r, nm, x0, ny, nmPx, ui::rgba(255, 255, 255));
 		// health bar + percentage
-		float hp = w.visible ? std::max(0, w.health) / float(std::max(1, w.settings->health)) : 0.0f;
+		float hp = std::max(0, w.health) / float(std::max(1, w.settings->health)); // also before (re)spawn
 		char pbuf[8];
 		std::snprintf(pbuf, sizeof(pbuf), "%d%%", (int)std::lround(hp * 100));
 		float pw = ui::textWidth("100%", 16 * s);
