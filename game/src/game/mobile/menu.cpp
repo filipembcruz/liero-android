@@ -384,9 +384,9 @@ void settingsScreen(Game* game)
 		{
 			static const char* fv[3] = { "Perto", "Amplo", "Máximo" };
 			if ((d = stepper(row(), "Campo de visão", fv[config.fov], "Amplo/Máximo mostram mais do mapa"))) { config.fov = std::max(0, std::min(2, config.fov + d)); }
-			static const char* vn[6] = { "Clássico", "Suave", "HD", "Toupeiras", "Besouros", "Robôs" };
+			static const char* vn[6] = { "Clássico", "Suave", "HD", "Toupeiras", "Soldados", "Robôs" };
 			static const char* vi[6] = { "Pixels originais do Liero", "Pixels suavizados (Scale2x)", "Vermes, armas e cenário desenhados",
-				"Toupeiras com sucata numa mina", "Besouros com armas orgânicas", "Robôs com armas de energia" };
+				"Toupeiras com sucata numa mina", "Soldados comando com arsenal de brinquedo", "Robôs com armas de energia" };
 			int vs = std::max(0, std::min(5, config.smooth));
 			if ((d = stepper(row(), "Visual", vn[vs], vi[vs]))) { config.smooth = std::max(0, std::min(5, config.smooth + d)); if (game) view.newGame(*game); }
 			if ((d = stepper(row(), "Minimapa", config.minimap ? "Ligado" : "Desligado"))) { config.minimap = d > 0 ? 1 : 0; }

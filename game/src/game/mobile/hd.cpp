@@ -38,7 +38,7 @@ std::map<std::string, Spr> skinSprites; // overrides of the current skin (ui/hd_
 bool loaded = false;
 int curSkin = 0;                        // 0 = HD, 1.. = extra skins
 SDL_Renderer* rend = nullptr;
-const char* skinFiles[] = { nullptr, "ui/hd_mole.bin", "ui/hd_bug.bin", "ui/hd_bot.bin" };
+const char* skinFiles[] = { nullptr, "ui/hd_mole.bin", "ui/hd_army.bin", "ui/hd_bot.bin" };
 const int SkinCount = 4;
 
 // per-game state
@@ -141,7 +141,8 @@ SDL_Texture* recolor(SDL_Renderer* r, Spr const& s, int R, int G, int B)
 		float rr = ((p >> 16) & 255) / 255.0f, gg = ((p >> 8) & 255) / 255.0f, bb = (p & 255) / 255.0f;
 		float h, sat, v;
 		rgb2hsv(rr, gg, bb, h, sat, v);
-		bool red = (h < 40 || h > 330) && sat > 0.22f;
+		// skins have skin tones / helmets / noses next to the red: only strong reds are team-coloured
+		bool red = curSkin > 0 ? ((h < 14 || h > 345) && sat > 0.5f) : ((h < 40 || h > 330) && sat > 0.22f);
 		if (red && a)
 		{
 			float nh = th, ns = std::min(1.0f, sat * (0.35f + ts * 0.75f));
@@ -533,7 +534,8 @@ void drawObjects(SDL_Renderer* r, Game& g, Camera const& cam)
 		float vx = fx(w.vel.x);
 		int frame = 0;
 		if (hurtTimer[wi] > 0) frame = 6;
-		else if (w.ninjarope.attached || !onGround) frame = 5;
+		else if (w.ninjarope.attached) frame = 7;
+		else if (!onGround) frame = 5;
 		else if (std::fabs(vx) > 0.05f) frame = 1 + ((int)(fx(w.pos.x) / 2.5f) & 3);
 		SDL_Texture* t = wormTex[wi][frame];
 		Spr* base = get(wormFrames[frame]);
@@ -541,9 +543,24 @@ void drawObjects(SDL_Renderer* r, Game& g, Camera const& cam)
 		if (!t || !base || !idle) continue;
 		float k = 16.0f * S / idle->h;        // same scale for all frames
 		float px = sx(fx(w.pos.x)), feet = sy(fx(w.pos.y) + 5.0f);
-		SDL_FRect d = { px - base->ax * k, feet - base->ay * k, base->w * k, base->h * k };
-		if (!right) d.x = px - (base->w - base->ax) * k;
-		SDL_RenderCopyExF(r, t, NULL, &d, 0, NULL, right ? SDL_FLIP_NONE : SDL_FLIP_HORIZONTAL);
+		if (frame == 7)
+		{
+			// Hanging on the ninja rope: the sprite (hands up, rope above) is
+			// rotated so its rope points at the real anchor; pivot = worm centre.
+			float rdx = fx(w.ninjarope.pos.x) - fx(w.pos.x), rdy = fx(w.ninjarope.pos.y) - fx(w.pos.y);
+			float rang = (rdx * rdx + rdy * rdy > 1e-4f) ? std::atan2(rdx, -rdy) * 180 / Pi : 0;
+			float cy = sy(fx(w.pos.y));
+			float hk = 20.0f * S / base->h; // the rope frame is taller (rope above the hands)
+			SDL_FRect d = { px - base->w * hk / 2, cy - base->h * hk * 0.62f, base->w * hk, base->h * hk };
+			SDL_FPoint c = { base->w * hk / 2, base->h * hk * 0.62f };
+			SDL_RenderCopyExF(r, t, NULL, &d, rang, &c, right ? SDL_FLIP_NONE : SDL_FLIP_HORIZONTAL);
+		}
+		else
+		{
+			SDL_FRect d = { px - base->ax * k, feet - base->ay * k, base->w * k, base->h * k };
+			if (!right) d.x = px - (base->w - base->ax) * k;
+			SDL_RenderCopyExF(r, t, NULL, &d, 0, NULL, right ? SDL_FLIP_NONE : SDL_FLIP_HORIZONTAL);
+		}
 
 		// gun
 		WormWeapon const& ww = w.weapons[w.currentWeapon];

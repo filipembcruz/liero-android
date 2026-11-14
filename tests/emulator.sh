@@ -21,6 +21,7 @@ gamepid() { adb shell pidof "$PKG:game" | tr -d '\r'; }
 read PW PH < <(adb shell wm size | sed -n 's/.*: \([0-9]*\)x\([0-9]*\).*/\1 \2/p' | tail -1)
 W=$(( PW > PH ? PW : PH )); H=$(( PW > PH ? PH : PW ))
 echo "screen ${W}x${H}"
+calc() { python3 -c "W=$W;H=$H;s=H/720.0;$1"; }
 
 # Launcher buttons are drawn by the app (unit u = H/720), see LauncherActivity.layoutButtons
 btn() { # $1 = play|custom|maps|trophy -> prints screen coords
@@ -47,6 +48,11 @@ adb shell am force-stop $PKG
 # Settings + stats screens
 adb shell am start -W -n $PKG/.LauncherActivity; sleep 3
 read X Y < <(btn custom); adb shell input tap $X $Y; sleep 2; shot 03_personalizar
+# compact panel tabs (PanelView): 4 tabs right-aligned in the panel header
+for T in 1 2 3; do
+  read TX TY < <(calc "u=H/720; pw=min(1120*u, W-40*u); right=(W+pw)/2; print(int(right-24*u-(4-$T)*176*u+10*u-83*u), int(30*u+45*u))")
+  adb shell input tap $TX $TY; sleep 1; shot 03_personalizar_tab$T
+done
 adb shell input keyevent KEYCODE_BACK; sleep 1
 read X Y < <(btn maps); adb shell input tap $X $Y; sleep 2; shot 04_mapas
 adb shell input keyevent KEYCODE_BACK; sleep 1
@@ -60,7 +66,6 @@ sleep 6
 shot 06_weapon_picker
 PID1=$(gamepid)
 echo "game pid: $PID1"
-calc() { python3 -c "W=$W;H=$H;s=H/720.0;$1"; }
 
 # Native weapon picker: ALEATÓRIO, then JOGAR
 read GX GY < <(calc "sw=min(200*s,(W-620*s)/5); bx=30*s+sw*5+16*s+24*s; bw=W-bx-30*s; print(int(bx+bw/2), int(H-176*s+115*s))")
@@ -95,7 +100,7 @@ sleep 1.0; shot 11_ninja_rope; wait
 read PX PY < <(calc "mpx=W-270*s-16*s-6*s; print(int(mpx-70*s+29*s), int(43*s))")
 adb shell input tap $PX $PY; sleep 2.5; shot 12_pause_menu
 # Settings (3rd button)
-read MX MY < <(calc "ph=520*s; py=(H-ph)/2; print(int(W/2), int(py+136*s+2*80*s+33*s))")
+read MX MY < <(calc "ph=520*s; py=(H-ph)/2; print(int(W/2), int(py+140*s+2*78*s+31*s))")
 adb shell input tap $MX $MY; sleep 1.5; shot 13_settings
 adb shell input keyevent KEYCODE_BACK; sleep 1.5
 # Android Back in the pause menu = resume; Back again in game = pause (never quits)

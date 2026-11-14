@@ -24,10 +24,10 @@ final class Prefs {
         "IA preditiva (olha 0,5 s à frente)",
         "IA preditiva completa (2 s à frente)" };
     static final int[] LIVES = { 1, 3, 5, 10, 15, 20, 30, 50, 99 };
-    static final String[] VISUALS = { "Clássico", "Suave", "HD", "Toupeiras", "Besouros", "Robôs" };
+    static final String[] VISUALS = { "Clássico", "Suave", "HD", "Toupeiras", "Soldados", "Robôs" };
     static final String[] VISUAL_INFO = {
         "Pixels originais do Liero", "Pixels suavizados (Scale2x)", "Vermes, armas e cenário desenhados",
-        "Toupeiras com sucata numa mina", "Besouros com armas orgânicas", "Robôs com armas de energia" };
+        "Toupeiras com sucata numa mina", "Soldados comando com arsenal de brinquedo", "Robôs com armas de energia" };
     static final String[] PAD_ACTIONS = { "Atirar", "Pular", "Corda ninja", "Trocar (segurar)", "Próxima arma", "Arma anterior", "Cavar", "Pausa" };
     static final String[] PAD_KEYS = { "padFire", "padJump", "padRope", "padChange", "padNext", "padPrev", "padDig", "padPause" };
     static final int[] PAD_DEFAULT = { 101, 0, 100, 1, 10, 9, 3, 6 };

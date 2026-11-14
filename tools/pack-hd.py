@@ -172,7 +172,7 @@ def pack(src, out, skin=False):
     names = ["worm_idle", "worm_walk1", "worm_walk2", "worm_walk3", "worm_walk4", "worm_jump", "worm_hurt", "worm_rope",
              "gun_bazooka", "gun_mgun", "worm_hand", None]
     for c, n in zip(cells, names):
-        if not n:
+        if not n or (skin and n in ("gun_bazooka", "gun_mgun")):
             continue
         comps = components(c, 30)
         if not comps:
@@ -201,6 +201,12 @@ def pack(src, out, skin=False):
         c = fit(trim(c), 180)
         w, h = c.size
         add(n, c, (w * 0.32, h * 0.6))
+        # skins: the worm sheet's weapon cells may show the character holding
+        # them, so bazooka / machine gun come from this sheet instead
+        if skin and n == "gun_cannon":
+            add("gun_bazooka", c, (w * 0.32, h * 0.6))
+        if skin and n == "gun_minigun":
+            add("gun_mgun", c, (w * 0.32, h * 0.6))
 
     # --- fx (6x3)
     fx = key_mask(Image.open(os.path.join(src, "fx_sheet.png")))
@@ -262,7 +268,7 @@ def pack(src, out, skin=False):
         sheet.convert("RGB").save(pv)
 
 
-SKINS = ("mole", "bug", "bot")  # Toupeiras, Besouros, Robôs -> game/ui/hd_<id>.bin
+SKINS = ("mole", "army", "bot")  # Toupeiras, Soldados, Robôs -> game/ui/hd_<id>.bin
 SKIN_FILES = ("worm_sheet.png", "guns_sheet.png", "projectiles_sheet.png", "fx_sheet.png", "background.png", "textures.png")
 
 

@@ -10,6 +10,7 @@
 #include "game/gfx.hpp"
 #include "game/mobile/touch.hpp"
 #include "game/mobile/view.hpp"
+#include "game/mobile/config.hpp"
 
 #include <algorithm>
 #include <cstdio>
@@ -95,9 +96,9 @@ static void pickerGo(float& x, float& y)
 static void pickerRandom(float& x, float& y) { pickerGo(x, y); y -= 76 * S; }
 static void pauseButton(int i, bool running, float& x, float& y)
 {
-	float ph = (running ? 520 : 470) * S;
+	float ph = (running ? 520 : 450) * S;
 	float py = (H - ph) / 2;
-	x = W / 2.0f; y = py + 136 * S + i * 80 * S + 33 * S;
+	x = W / 2.0f; y = py + 140 * S + i * 78 * S + 31 * S;
 }
 
 int main(int argc, char** argv)
@@ -160,7 +161,25 @@ int main(int argc, char** argv)
 	});
 	// 8) Resume (first button)
 	at(f + 60, [](SDL_Renderer*) { float x, y; pauseButton(0, true, x, y); tapAt(x, y); });
-	at(f + 140, [](SDL_Renderer* r) { shot(r, "12_resumed"); std::fflush(stdout); std::_Exit(0); });
+	at(f + 140, [](SDL_Renderer* r) { shot(r, "12_resumed"); });
+	f += 150;
+	// 9) Extra visuals (skins): switch, hang on the ninja rope, capture.
+	static const char* skinShots[3] = { "13_skin_toupeiras", "14_skin_soldados", "15_skin_robos" };
+	for (int k = 0; k < 3; ++k)
+	{
+		at(f, [k](SDL_Renderer*) {
+			mobile::config.smooth = 3 + k;
+			if (mobile::view.game) mobile::view.newGame(*mobile::view.game);
+		});
+		at(f + 5, [](SDL_Renderer*) { stick(1, 0.3f, -1.0f, true); });
+		at(f + 15, [](SDL_Renderer*) { pressButton(mobile::VRope, 4, true); });
+		at(f + 50, [k](SDL_Renderer* r) { shot(r, skinShots[k]); });
+		at(f + 52, [](SDL_Renderer*) { pressButton(mobile::VRope, 4, false); stick(1, 0.3f, -1.0f, false); });
+		at(f + 60, [](SDL_Renderer*) { pressButton(mobile::VJump, 7, true); });
+		at(f + 64, [](SDL_Renderer*) { pressButton(mobile::VJump, 7, false); });
+		f += 80;
+	}
+	at(f, [](SDL_Renderer*) { std::fflush(stdout); std::_Exit(0); });
 
 	gfx.mobileFrameHook = hook;
 
