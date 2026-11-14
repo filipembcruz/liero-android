@@ -71,13 +71,19 @@ struct Theme
 	uint32_t edge;     // colour of the solid edge line (RGB)
 	float edgeK;       // 0 = dark outline (multiply), 1 = coloured glow
 };
-// Terrain look per skin (HD, Toupeiras, Besouros, Robôs). Textures and background
-// come from the skin's own sprites (same names, see get()).
-const Theme themes[SkinCount] = {
-	{ "bg_cave", "tex_dirt", "tex_rock", 0x0A0612, 150, 0x000000, 0.0f },
-	{ "bg_cave", "tex_dirt", "tex_rock", 0x140A04, 160, 0x000000, 0.0f },
-	{ "bg_cave", "tex_dirt", "tex_rock", 0x061008, 150, 0x000000, 0.0f },
-	{ "bg_cave", "tex_dirt", "tex_rock", 0x04101C, 120, 0x40E0FF, 0.55f },
+// Map themes (Configurações -> Visual -> Tema do mapa): background + ground + rock.
+const int ThemeCount = 10;
+const Theme themes[ThemeCount] = {
+	{ "bg_t0", "tex_dirt_t0", "tex_rock_t0", 0x0A0612, 150, 0x000000, 0.0f },
+	{ "bg_t1", "tex_dirt_t1", "tex_rock_t1", 0x1A0E06, 140, 0x000000, 0.0f },
+	{ "bg_t2", "tex_dirt_t2", "tex_rock_t2", 0x0A1020, 120, 0x000000, 0.0f },
+	{ "bg_t3", "tex_dirt_t3", "tex_rock_t3", 0x140606, 150, 0x000000, 0.0f },
+	{ "bg_t4", "tex_dirt_t4", "tex_rock_t4", 0x060E06, 150, 0x000000, 0.0f },
+	{ "bg_t5", "tex_dirt_t5", "tex_rock_t5", 0x100404, 150, 0xFF6A20, 0.45f },
+	{ "bg_t6", "tex_dirt_t6", "tex_rock_t6", 0x04060E, 150, 0x000000, 0.0f },
+	{ "bg_t7", "tex_dirt_t7", "tex_rock_t7", 0x140604, 150, 0x000000, 0.0f },
+	{ "bg_t8", "tex_dirt_t8", "tex_rock_t8", 0x080A04, 150, 0x000000, 0.0f },
+	{ "bg_t9", "tex_dirt_t9", "tex_rock_t9", 0x120608, 150, 0x000000, 0.0f },
 };
 Theme const* theme = &themes[0];
 
@@ -240,8 +246,8 @@ void regenTerrain(Game& g, int x0, int y0, int x1, int y1)
 	if (x1 <= x0 || y1 <= y0) return;
 	Spr* dirt = get(theme->dirt);
 	Spr* rock = get(theme->rock);
-	if (!dirt || dirt->px.empty()) dirt = get("tex_dirt");
-	if (!rock || rock->px.empty()) rock = get("tex_rock");
+	if (!dirt || dirt->px.empty()) dirt = get("tex_dirt_t0");
+	if (!rock || rock->px.empty()) rock = get("tex_rock_t0");
 	if (!dirt || !rock || dirt->px.empty() || rock->px.empty()) return;
 	int ow = (x1 - x0) * T, oh = (y1 - y0) * T;
 	genBuf.assign(std::size_t(ow) * oh, 0);
@@ -413,7 +419,7 @@ void newGame(SDL_Renderer* r, Game& g)
 	if (!loaded) return;
 	curGame = &g;
 	ensureSkin();
-	theme = &themes[curSkin];
+	theme = &themes[std::max(0, std::min(ThemeCount - 1, config.theme))];
 	buildLooks(*g.common);
 	for (int w = 0; w < 2; ++w)
 		for (int f = 0; f < 8; ++f)
@@ -441,7 +447,7 @@ void newGame(SDL_Renderer* r, Game& g)
 void drawBackground(SDL_Renderer* r, Game& g, Camera const& cam)
 {
 	Spr* bg = get(theme->bg);
-	if (!bg) bg = get("bg_cave");
+	if (!bg) bg = get("bg_t0");
 	if (!bg) return;
 	// cover the screen, gentle parallax with the camera
 	float levelW = (float)g.level.width, levelH = (float)g.level.height;

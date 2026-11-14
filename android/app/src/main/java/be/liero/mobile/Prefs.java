@@ -24,9 +24,9 @@ final class Prefs {
         "IA preditiva (olha 0,5 s à frente)",
         "IA preditiva completa (2 s à frente)" };
     static final int[] LIVES = { 1, 3, 5, 10, 15, 20, 30, 50, 99 };
-    static final String[] VISUALS = { "Clássico", "Suave", "HD", "Toupeiras", "Soldados", "Robôs" };
+    static final String[] VISUALS = { "Clássico", "Suave", "Minhocas", "Toupeiras", "Soldados", "Robôs" };
     static final String[] VISUAL_INFO = {
-        "Pixels originais do Liero", "Pixels suavizados (Scale2x)", "Vermes, armas e cenário desenhados",
+        "Pixels originais do Liero", "Pixels suavizados (Scale2x)", "Minhocas desenhadas, armas e explosões",
         "Toupeiras com sucata numa mina", "Soldados comando com arsenal de brinquedo", "Robôs com armas de energia" };
     static final String[] PAD_ACTIONS = { "Atirar", "Pular", "Corda ninja", "Trocar (segurar)", "Próxima arma", "Arma anterior", "Cavar", "Pausa" };
     static final String[] PAD_KEYS = { "padFire", "padJump", "padRope", "padChange", "padNext", "padPrev", "padDig", "padPause" };
@@ -95,7 +95,8 @@ final class Prefs {
     int loadingTime() { return i("loadingTime", 100); }
     int fov() { return i("fov", 1); }
     int touchShow() { return Math.max(0, Math.min(2, i("touchShow", 0))); }
-    int theme() { return Math.max(0, Math.min(2, i("theme", 0))); }
+    int theme() { return Math.max(0, Math.min(THEMES.length - 1, i("mapTheme", 0))); }
+    static final String[] THEMES = { "Terra", "Deserto", "Neve", "Argila", "Musgo", "Vulcânico", "Lua", "Marte", "Pântano", "Chocolate" };
     int visual() { return Math.max(0, Math.min(VISUALS.length - 1, i("smooth", 2))); }
 
     final class Editor {

@@ -78,6 +78,8 @@ public class SettingsActivity extends PanelActivity {
                 r.add(step("Campo de visão", "Amplo/Máximo mostram mais do mapa", () -> fv[prefs.fov()], d -> put("fov", clamp(prefs.fov() + d, 0, 2))));
                 r.add(step("Visual", Prefs.VISUAL_INFO[prefs.visual()], () -> Prefs.VISUALS[prefs.visual()],
                     d -> put("smooth", clamp(prefs.visual() + d, 0, Prefs.VISUALS.length - 1))));
+                r.add(step("Tema do mapa", prefs.visual() >= 2 ? "Terreno e fundo do mapa" : "Só nos visuais desenhados (Minhocas em diante)",
+                    () -> Prefs.THEMES[prefs.theme()], d -> put("mapTheme", clamp(prefs.theme() + d, 0, Prefs.THEMES.length - 1))));
                 r.add(step("Minimapa", null, () -> get("minimap", 1) != 0 ? "Ligado" : "Desligado", d -> put("minimap", d > 0 ? 1 : 0)));
                 r.add(step("Opacidade do HUD", "Placar, minimapa e barra de armas",
                     () -> pct(get("hudOpacity", 100)), d -> put("hudOpacity", clamp(get("hudOpacity", 100) + d * 10, 20, 100))));

@@ -169,6 +169,7 @@ int main(int argc, char** argv)
 	{
 		at(f, [k](SDL_Renderer*) {
 			mobile::config.smooth = 3 + k;
+			mobile::config.theme = 1 + k * 3; // Deserto, Vulcânico, Pântano
 			if (mobile::view.game) mobile::view.newGame(*mobile::view.game);
 		});
 		at(f + 5, [](SDL_Renderer*) { stick(1, 0.3f, -1.0f, true); });

@@ -384,11 +384,14 @@ void settingsScreen(Game* game)
 		{
 			static const char* fv[3] = { "Perto", "Amplo", "Máximo" };
 			if ((d = stepper(row(), "Campo de visão", fv[config.fov], "Amplo/Máximo mostram mais do mapa"))) { config.fov = std::max(0, std::min(2, config.fov + d)); }
-			static const char* vn[6] = { "Clássico", "Suave", "HD", "Toupeiras", "Soldados", "Robôs" };
-			static const char* vi[6] = { "Pixels originais do Liero", "Pixels suavizados (Scale2x)", "Vermes, armas e cenário desenhados",
+			static const char* vn[6] = { "Clássico", "Suave", "Minhocas", "Toupeiras", "Soldados", "Robôs" };
+			static const char* vi[6] = { "Pixels originais do Liero", "Pixels suavizados (Scale2x)", "Minhocas desenhadas, armas e explosões",
 				"Toupeiras com sucata numa mina", "Soldados comando com arsenal de brinquedo", "Robôs com armas de energia" };
 			int vs = std::max(0, std::min(5, config.smooth));
 			if ((d = stepper(row(), "Visual", vn[vs], vi[vs]))) { config.smooth = std::max(0, std::min(5, config.smooth + d)); if (game) view.newGame(*game); }
+			static const char* tn[10] = { "Terra", "Deserto", "Neve", "Argila", "Musgo", "Vulcânico", "Lua", "Marte", "Pântano", "Chocolate" };
+			if ((d = stepper(row(), "Tema do mapa", tn[std::max(0, std::min(9, config.theme))], config.smooth >= 2 ? "Terreno e fundo do mapa" : "Só nos visuais desenhados (Minhocas em diante)")))
+			{ config.theme = std::max(0, std::min(9, config.theme + d)); if (game) view.newGame(*game); }
 			if ((d = stepper(row(), "Minimapa", config.minimap ? "Ligado" : "Desligado"))) { config.minimap = d > 0 ? 1 : 0; }
 			if ((d = stepper(row(), "Opacidade do HUD", pct(config.hudOpacity), "Placar, minimapa e barra de armas"))) { config.hudOpacity = std::max(20, std::min(100, config.hudOpacity + d * 10)); }
 			if ((d = stepper(row(), "HUD transparente sobre você", config.hudAutoFade ? "Ligado" : "Desligado", "O painel some quando o seu personagem passa por baixo"))) { config.hudAutoFade = d > 0 ? 1 : 0; }

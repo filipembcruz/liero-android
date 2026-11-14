@@ -247,14 +247,19 @@ def pack(src, out, skin=False):
             if c is not None:
                 add(n, fit(trim(c), 256))
 
-    # --- background + textures (opaque)
-    bg = Image.open(os.path.join(src, "background.png" if skin else "cave_background.png")).convert("RGB")
-    bg = bg.resize((1280, int(1280 * bg.height / bg.width)), Image.LANCZOS)
-    add("bg_cave", bg.convert("RGBA"))
-    tx = Image.open(os.path.join(src, "textures.png")).convert("RGB")
-    W, H = tx.size
-    add("tex_dirt", seamless(tx.crop((0, 0, W // 2, H)), 384))
-    add("tex_rock", seamless(tx.crop((W // 2, 0, W, H)), 384))
+    # --- map themes (base set only): art/source/maps/t<i>/{background,textures}.png
+    if not skin:
+        i = 0
+        while os.path.isdir(os.path.join(SRC, "maps", "t%d" % i)):
+            d = os.path.join(SRC, "maps", "t%d" % i)
+            b = Image.open(os.path.join(d, "background.png")).convert("RGB")
+            b = b.resize((800, int(800 * b.height / b.width)), Image.LANCZOS)
+            add("bg_t%d" % i, b.convert("RGBA"))
+            t = Image.open(os.path.join(d, "textures.png")).convert("RGB")
+            W, H = t.size
+            add("tex_dirt_t%d" % i, seamless(t.crop((0, 0, W // 2, H)), 384))
+            add("tex_rock_t%d" % i, seamless(t.crop((W // 2, 0, W, H)), 384))
+            i += 1
 
     with open(out, "wb") as f:
         f.write(b"LHD1" + struct.pack("<H", len(entries)))
@@ -278,7 +283,7 @@ def pack(src, out, skin=False):
 
 
 SKINS = ("mole", "army", "bot")  # Toupeiras, Soldados, Robôs -> game/ui/hd_<id>.bin
-SKIN_FILES = ("worm_sheet.png", "guns_sheet.png", "projectiles_sheet.png", "fx_sheet.png", "background.png", "textures.png")
+SKIN_FILES = ("worm_sheet.png", "guns_sheet.png", "projectiles_sheet.png", "fx_sheet.png")
 
 
 def main():
