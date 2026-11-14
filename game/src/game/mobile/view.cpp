@@ -400,48 +400,62 @@ void View::drawHud(SDL_Renderer* r, Game& g)
 	std::stable_sort(order.begin(), order.end(), [&](Worm* a, Worm* b) {
 		return lives ? (a->lives * 1000 + a->kills) > (b->lives * 1000 + b->kills) : a->kills > b->kills;
 	});
-	SDL_FRect sb = { 12 * s, 10 * s, 330 * s, 22 * s + order.size() * 44 * s };
+	// rows: [head] name ........ skull kills  heart lives
+	//             [health bar ............]  97%
+	const float padX = 16 * s, rowH = 52 * s;
+	SDL_FRect sb = { 12 * s, 10 * s, 360 * s, 16 * s + order.size() * rowH };
 	ui::setAlpha(groupAlpha(sb));
 	ui::panel(r, sb, s);
 	for (std::size_t i = 0; i < order.size(); ++i)
 	{
 		Worm& w = *order[i];
-		float y = sb.y + 33 * s + i * 44 * s;
+		float top = sb.y + 8 * s + i * rowH;
+		float cy = top + rowH / 2;
+		float hx = sb.x + padX + 16 * s;
+		ui::wormHead(r, hx, cy, 16 * s, wormColor(w));
 		if (i == 0 && (w.kills > 0 || lives))
-			ui::icon(r, ui::ICrown, sb.x + 20 * s, y - 12 * s, 11 * s, ui::rgba(255, 205, 60));
-		ui::wormHead(r, sb.x + 46 * s, y, 16 * s, wormColor(w));
-		std::string nm = w.settings->name + (w.index == 0 ? "" : "");
-		ui::text(r, nm, sb.x + 70 * s, y - 7 * s, 21 * s, ui::rgba(255, 255, 255));
-		float hp = w.visible ? std::max(0, w.health) / float(std::max(1, w.settings->health)) : 0.0f;
-		ui::bar(r, { sb.x + 70 * s, y + 9 * s, 150 * s, 8 * s }, hp, ui::rgba(130, 240, 90), ui::rgba(40, 170, 40));
-		ui::icon(r, ui::ISkull, sb.x + 240 * s, y - 2 * s, 12 * s, ui::rgba(235, 235, 245));
-		ui::text(r, std::to_string(w.kills), sb.x + 256 * s, y, 22 * s, ui::rgba(255, 255, 255));
+			ui::icon(r, ui::ICrown, hx, top + 4 * s, 9 * s, ui::rgba(255, 205, 60));
+		float x0 = hx + 26 * s, x1 = sb.x + sb.w - padX;
+		// stats (right aligned on the name line)
+		float ny = top + 17 * s;
+		float sx = x1;
 		if (lives)
 		{
-			ui::icon(r, ui::IHeart, sb.x + 290 * s, y - 2 * s, 11 * s, ui::rgba(255, 90, 110));
-			ui::text(r, std::to_string(w.lives), sb.x + 305 * s, y, 22 * s, ui::rgba(255, 255, 255));
+			std::string lv = std::to_string(w.lives);
+			ui::text(r, lv, sx, ny, 20 * s, ui::rgba(255, 255, 255), ui::Right);
+			sx -= ui::textWidth(lv, 20 * s) + 6 * s;
+			ui::icon(r, ui::IHeart, sx - 9 * s, ny, 10 * s, ui::rgba(255, 90, 110));
+			sx -= 28 * s;
 		}
+		std::string kl = std::to_string(w.kills);
+		ui::text(r, kl, sx, ny, 20 * s, ui::rgba(255, 255, 255), ui::Right);
+		sx -= ui::textWidth(kl, 20 * s) + 6 * s;
+		ui::icon(r, ui::ISkull, sx - 9 * s, ny, 11 * s, ui::rgba(235, 235, 245));
+		sx -= 24 * s;
+		// name, shrunk to the space left
+		std::string nm = w.settings->name;
+		float nmPx = std::min(20 * s, (sx - x0 - 8 * s) / std::max(1.0f, ui::textWidth(nm, 1.0f)));
+		ui::text(r, nm, x0, ny, nmPx, ui::rgba(255, 255, 255));
+		// health bar + percentage
+		float hp = w.visible ? std::max(0, w.health) / float(std::max(1, w.settings->health)) : 0.0f;
+		char pbuf[8];
+		std::snprintf(pbuf, sizeof(pbuf), "%d%%", (int)std::lround(hp * 100));
+		float pw = ui::textWidth("100%", 16 * s);
+		SDL_Color hc = hp > 0.5f ? ui::rgba(130, 240, 90) : hp > 0.25f ? ui::rgba(255, 200, 70) : ui::rgba(255, 90, 80);
+		ui::bar(r, { x0, top + 34 * s, x1 - x0 - pw - 10 * s, 9 * s }, hp, hc, ui::rgba(hc.r * 6 / 10, hc.g * 6 / 10, hc.b * 6 / 10));
+		ui::text(r, pbuf, x1, top + 38 * s, 16 * s, hc, ui::Right);
 	}
 
-	// --- Timer + mode banner (top centre)
+	// --- Timer (small pill, top centre)
 	int secs = g.cycles / 70;
 	char tbuf[16];
 	std::snprintf(tbuf, sizeof(tbuf), "%d:%02d", secs / 60, secs % 60);
-	SDL_FRect tp = { sb.x + sb.w + 14 * s, 10 * s, 128 * s, 54 * s };
-	ui::setAlpha(groupAlpha({ tp.x, tp.y, 128 * s + 14 * s + 250 * s, 64 * s }));
+	float tw = ui::textWidth("00:00", 24 * s) + 56 * s;
+	SDL_FRect tp = { (winW_ - tw) / 2, 10 * s, tw, 44 * s };
+	ui::setAlpha(groupAlpha(tp));
 	ui::panel(r, tp, s);
-	ui::icon(r, ui::IClock, tp.x + 28 * s, tp.y + tp.h / 2, 15 * s, ui::rgba(255, 255, 255));
-	ui::text(r, tbuf, tp.x + 52 * s, tp.y + tp.h / 2, 28 * s, ui::rgba(255, 255, 255));
-
-	std::string sub = lives ? (std::to_string(g.settings->lives) + " vidas cada") : "";
-	SDL_FRect bp = { tp.x + tp.w + 14 * s, 10 * s, 250 * s, 64 * s };
-	ui::panel(r, bp, s);
-	ui::text(r, modeName(g.settings->gameMode), bp.x + bp.w / 2, bp.y + 22 * s, 27 * s, ui::rgba(255, 255, 255), ui::Center);
-	if (!sub.empty())
-	{
-		ui::icon(r, ui::ISkull, bp.x + bp.w / 2 - ui::textWidth(sub, 19 * s) / 2 - 14 * s, bp.y + 47 * s, 9 * s, ui::rgba(255, 255, 255));
-		ui::text(r, sub, bp.x + bp.w / 2 + 6 * s, bp.y + 47 * s, 19 * s, ui::rgba(220, 225, 255), ui::Center);
-	}
+	ui::icon(r, ui::IClock, tp.x + 24 * s, tp.y + tp.h / 2, 12 * s, ui::rgba(255, 255, 255));
+	ui::text(r, tbuf, tp.x + 42 * s, tp.y + tp.h / 2, 24 * s, ui::rgba(255, 255, 255));
 
 	// --- Minimap (top-right) + pause button
 	float mmw = 270 * s, mmh = mmw * levelH_ / std::max(1, levelW_);
@@ -476,7 +490,7 @@ void View::drawHud(SDL_Renderer* r, Game& g)
 	float barW = slotW * 5 + 16 * s;
 	float barH = std::min(100 * s, slotW * 0.95f);
 	SDL_FRect wb = { left + (avail - barW) / 2, winH_ - barH - 14 * s, barW, barH };
-	ui::setAlpha(groupAlpha({ wb.x, wb.y - 54 * s, wb.w, wb.h + 54 * s }));
+	ui::setAlpha(groupAlpha(wb));
 	ui::panel(r, wb, s, 0.78f);
 	slotCount = 5;
 	for (int i = 0; i < 5; ++i)
@@ -527,21 +541,6 @@ void View::drawHud(SDL_Renderer* r, Game& g)
 		}
 	}
 
-	// Player strip above the bar: head, name, health, current weapon state
-	SDL_FRect ps = { wb.x, wb.y - 54 * s, std::min(barW, 420 * s), 46 * s };
-	ui::panel(r, ps, s, 0.78f);
-	ui::wormHead(r, ps.x + 28 * s, ps.y + ps.h / 2, 16 * s, wormColor(me));
-	ui::text(r, me.settings->name, ps.x + 52 * s, ps.y + 15 * s, 18 * s, ui::rgba(255, 255, 255));
-	ui::text(r, "(Você)", ps.x + 58 * s + ui::textWidth(me.settings->name, 18 * s), ps.y + 15 * s, 18 * s, ui::rgba(120, 190, 255));
-	float hp = me.visible ? std::max(0, me.health) / float(std::max(1, me.settings->health)) : 0.0f;
-	SDL_FRect hb = { ps.x + 52 * s, ps.y + 28 * s, ps.w - 150 * s, 10 * s };
-	ui::bar(r, hb, hp, ui::rgba(130, 240, 90), ui::rgba(40, 170, 40));
-	char hbuf[24];
-	std::snprintf(hbuf, sizeof(hbuf), "%d/%d", std::max(0, me.visible ? me.health : 0), me.settings->health);
-	ui::text(r, hbuf, ps.x + ps.w - 12 * s, ps.y + 31 * s, 19 * s, ui::rgba(255, 255, 255), ui::Right);
-	WormWeapon const& cw = me.weapons[me.currentWeapon];
-	if (cw.type && !cw.available() && (g.cycles % 30) < 20)
-		ui::text(r, "Recarregando…", ps.x + ps.w - 12 * s, ps.y + 13 * s, 16 * s, ui::rgba(255, 170, 90), ui::Right);
 	ui::setAlpha(1.0f);
 }
 

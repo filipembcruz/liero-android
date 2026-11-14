@@ -299,10 +299,17 @@ void regenTerrain(Game& g, int x0, int y0, int x1, int y1)
 				}
 				out = 0xFF000000u | (rr << 16) | (gg << 8) | bb;
 			}
-			else if (s > 0.32f)
+			else
 			{
-				// soft dark rim inside the tunnel edge (ambient occlusion)
-				out = (uint32_t((s - 0.32f) / 0.18f * theme->rimAlpha) << 24) | theme->rim;
+				// Tunnel back wall: the dirt texture, darkened and at half frequency, so
+				// open areas read as one calm surface (no busy picture behind the play).
+				uint32_t c = dirt->px[((Y / 2) % dirt->h) * dirt->w + ((X / 2) % dirt->w)];
+				float sh = 0.30f;
+				if (s > 0.32f) sh *= 1.0f - (s - 0.32f) / 0.18f * 0.6f; // ambient occlusion near the edge
+				int rr = (int)(((c >> 16) & 255) * sh), gg = (int)(((c >> 8) & 255) * sh), bb = (int)((c & 255) * sh);
+				// cool tint so air never looks like solid dirt
+				rr = rr * 85 / 100; gg = gg * 90 / 100; bb = std::min(255, bb * 105 / 100 + 6);
+				out = 0xFF000000u | (rr << 16) | (gg << 8) | bb;
 			}
 			genBuf[std::size_t(oy) * ow + ox] = out;
 		}
@@ -446,6 +453,10 @@ void drawBackground(SDL_Renderer* r, Game& g, Camera const& cam)
 	py = std::max(0.0f, std::min(1.0f, py));
 	SDL_FRect d = { -(bw - cam.screenW) * px, -(bh - cam.screenH) * py, bw, bh };
 	SDL_RenderCopyF(r, bg->tex, NULL, &d);
+	// only seen past the map border now: keep it dim so it doesn't compete
+	SDL_SetRenderDrawBlendMode(r, SDL_BLENDMODE_BLEND);
+	SDL_SetRenderDrawColor(r, 6, 6, 16, 120);
+	SDL_RenderFillRectF(r, NULL);
 }
 
 void drawTerrain(SDL_Renderer* r, Game& g, Camera const& cam)
@@ -534,33 +545,18 @@ void drawObjects(SDL_Renderer* r, Game& g, Camera const& cam)
 		float vx = fx(w.vel.x);
 		int frame = 0;
 		if (hurtTimer[wi] > 0) frame = 6;
-		else if (w.ninjarope.attached) frame = 7;
-		else if (!onGround) frame = 5;
+		else if (w.ninjarope.attached || !onGround) frame = 5; // on the rope: jump pose, the game draws the rope
 		else if (std::fabs(vx) > 0.05f) frame = 1 + ((int)(fx(w.pos.x) / 2.5f) & 3);
 		SDL_Texture* t = wormTex[wi][frame];
 		Spr* base = get(wormFrames[frame]);
 		Spr* idle = get("worm_idle");
 		if (!t || !base || !idle) continue;
-		float k = 16.0f * S / idle->h;        // same scale for all frames
+		float k = (curSkin > 0 ? 14.0f : 16.0f) * S / idle->h; // same scale for all frames
 		float px = sx(fx(w.pos.x)), feet = sy(fx(w.pos.y) + 5.0f);
-		if (frame == 7)
-		{
-			// Hanging on the ninja rope: the sprite (hands up, rope above) is
-			// rotated so its rope points at the real anchor; pivot = worm centre.
-			float rdx = fx(w.ninjarope.pos.x) - fx(w.pos.x), rdy = fx(w.ninjarope.pos.y) - fx(w.pos.y);
-			float rang = (rdx * rdx + rdy * rdy > 1e-4f) ? std::atan2(rdx, -rdy) * 180 / Pi : 0;
-			float cy = sy(fx(w.pos.y));
-			float hk = 20.0f * S / base->h; // the rope frame is taller (rope above the hands)
-			SDL_FRect d = { px - base->w * hk / 2, cy - base->h * hk * 0.62f, base->w * hk, base->h * hk };
-			SDL_FPoint c = { base->w * hk / 2, base->h * hk * 0.62f };
-			SDL_RenderCopyExF(r, t, NULL, &d, rang, &c, right ? SDL_FLIP_NONE : SDL_FLIP_HORIZONTAL);
-		}
-		else
-		{
-			SDL_FRect d = { px - base->ax * k, feet - base->ay * k, base->w * k, base->h * k };
-			if (!right) d.x = px - (base->w - base->ax) * k;
-			SDL_RenderCopyExF(r, t, NULL, &d, 0, NULL, right ? SDL_FLIP_NONE : SDL_FLIP_HORIZONTAL);
-		}
+		SDL_FRect d = { px - base->ax * k, feet - base->ay * k, base->w * k, base->h * k };
+		if (!right) d.x = px - (base->w - base->ax) * k;
+		SDL_RenderCopyExF(r, t, NULL, &d, 0, NULL, right ? SDL_FLIP_NONE : SDL_FLIP_HORIZONTAL);
+	
 
 		// gun
 		WormWeapon const& ww = w.weapons[w.currentWeapon];
@@ -569,7 +565,7 @@ void drawObjects(SDL_Renderer* r, Game& g, Camera const& cam)
 		WeaponLook const& l = (widx >= 0 && widx < (int)looks.size()) ? looks[widx] : WeaponLook();
 		Spr* gun = get(l.gun);
 		if (!gun) continue;
-		float gk = l.gunLen * S / gun->w;
+		float gk = l.gunLen * 0.72f * S / gun->w;
 		float gx = px + (right ? 1.5f : -1.5f) * S, gy = sy(fx(w.pos.y) - 0.5f);
 		SDL_FRect gd = { gx - gun->ax * gk, gy - gun->ay * gk, gun->w * gk, gun->h * gk };
 		SDL_FPoint c = { gun->ax * gk, gun->ay * gk };

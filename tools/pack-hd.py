@@ -169,6 +169,7 @@ def pack(src, out, skin=False):
     # --- worm (4x3 grid): body frames + guns + hand
     worm = key_mask(Image.open(os.path.join(src, "worm_sheet.png")), shadows=True)
     cells = grid_cells(worm, 4, 3)
+    frames = []
     names = ["worm_idle", "worm_walk1", "worm_walk2", "worm_walk3", "worm_walk4", "worm_jump", "worm_hurt", "worm_rope",
              "gun_bazooka", "gun_mgun", "worm_hand", None]
     for c, n in zip(cells, names):
@@ -184,13 +185,21 @@ def pack(src, out, skin=False):
             keep = [comps[0]] + [k for k in comps[1:] if k[0] > comps[0][0] * 0.15]
         c = trim(keep_only(c, keep))
         if n.startswith("worm_"):
-            c = fit(c, 170)
-            w, h = c.size
-            add(n, c, (w * 0.5, h - 2))
+            frames.append((n, c))
         else:
             c = fit(c, 180)
             w, h = c.size
             add(n, c, (w * 0.33, h * 0.55))
+
+    # one scale for every character frame (from the idle pose), so the
+    # character never changes size between animation frames
+    idle = dict(frames).get("worm_idle")
+    ks = min(1.0, 170 / max(idle.size)) if idle else 1.0
+    for n, c in frames:
+        w, h = c.size
+        c = c.resize((max(1, round(w * ks)), max(1, round(h * ks))), Image.LANCZOS)
+        w, h = c.size
+        add(n, c, (w * 0.5, h - 2))
 
     # --- guns (4x2)
     guns = key_mask(Image.open(os.path.join(src, "guns_sheet.png")))
