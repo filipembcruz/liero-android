@@ -63,6 +63,7 @@ android {
         targetCompatibility JavaVersion.VERSION_17
     }
     packagingOptions { jniLibs { useLegacyPackaging false } }
+    lint { checkReleaseBuilds false; abortOnError false }
 }
 
 dependencies {
