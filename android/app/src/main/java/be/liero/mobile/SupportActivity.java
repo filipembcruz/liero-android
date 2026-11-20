@@ -33,17 +33,19 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * "Support an indie developer": three voluntary tips sold as consumable
- * Google Play in-app products (tip_small, tip_medium, tip_large). They unlock
+ * "Support an indie developer": five voluntary tips (≈ US$ 2/5/10/20/50) sold
+ * as consumable Google Play in-app products (tip_2 … tip_50). They unlock
  * nothing but a heart next to the player's name.
  */
 public class SupportActivity extends Activity {
-    static final String[] PRODUCTS = { "tip_small", "tip_medium", "tip_large" };
-    static final String[] TIER = { "Um café", "Um lanche", "Grande apoio" };
-    static final int[] HEARTS = { 1, 2, 3 };
+    static final String[] PRODUCTS = { "tip_2", "tip_5", "tip_10", "tip_20", "tip_50" };
+    static final String[] TIER = { "Um café", "Um lanche", "Uma pizza", "Grande apoio", "Mecenas" };
+    static final int[] HEARTS = { 1, 2, 3, 4, 5 };
+    static final int N = PRODUCTS.length;
+    static final int FEATURED = 2;
 
     BillingClient billing;
-    final ProductDetails[] details = new ProductDetails[3];
+    final ProductDetails[] details = new ProductDetails[N];
     SupportView view;
     boolean prompt;
     String status;      // message under the cards (thank you / unavailable)
@@ -173,7 +175,7 @@ public class SupportActivity extends Activity {
 
     final class SupportView extends LauncherActivity.SceneView {
         final Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
-        final RectF[] cards = { new RectF(), new RectF(), new RectF() };
+        final RectF[] cards = { new RectF(), new RectF(), new RectF(), new RectF(), new RectF() };
         final RectF back = new RectF();
         int down = -1;
 
@@ -243,13 +245,13 @@ public class SupportActivity extends Activity {
             y = para(c, body, cx, y, pw - 120 * u, 21 * u, Color.rgb(205, 210, 240));
             y += 22 * u;
 
-            // three tip cards
-            float gap = 22 * u, cw = Math.min(250 * u, (pw - 100 * u - gap * 2) / 3), ch = 170 * u;
-            float x0 = cx - (cw * 3 + gap * 2) / 2;
-            for (int i = 0; i < 3; ++i) {
+            // tip cards
+            float gap = 16 * u, cw = Math.min(200 * u, (pw - 60 * u - gap * (N - 1)) / N), ch = 170 * u;
+            float x0 = cx - (cw * N + gap * (N - 1)) / 2;
+            for (int i = 0; i < N; ++i) {
                 RectF r = cards[i];
                 r.set(x0 + i * (cw + gap), y, x0 + i * (cw + gap) + cw, y + ch);
-                boolean big = i == 1;
+                boolean big = i == FEATURED;
                 int top = big ? Color.rgb(255, 120, 165) : Color.rgb(96, 72, 190);
                 int bot = big ? Color.rgb(205, 42, 100) : Color.rgb(62, 44, 140);
                 if (down == i) { top = Color.rgb(255, 160, 195); }
@@ -261,13 +263,13 @@ public class SupportActivity extends Activity {
                 c.drawRoundRect(r, 18 * u, 18 * u, p);
                 p.setStyle(Paint.Style.FILL);
                 int n = HEARTS[i];
-                float hs = 13 * u, hy = r.top + 38 * u;
+                float hs = Math.min(13 * u, (cw - 24 * u) / (n * 2.4f)), hy = r.top + 38 * u;
                 for (int k = 0; k < n; ++k)
                     Icons.draw(c, p, Icons.HEART, r.centerX() + (k - (n - 1) / 2f) * hs * 2.4f, hy, hs, Color.WHITE);
-                text(c, I18n.t(TIER[i]), r.centerX(), r.top + 84 * u, 24 * u, Color.WHITE, Paint.Align.CENTER, cw - 24 * u);
+                text(c, I18n.t(TIER[i]), r.centerX(), r.top + 84 * u, 22 * u, Color.WHITE, Paint.Align.CENTER, cw - 24 * u);
                 String price = details[i] != null && details[i].getOneTimePurchaseOfferDetails() != null
                     ? details[i].getOneTimePurchaseOfferDetails().getFormattedPrice() : "—";
-                RectF pill = new RectF(r.left + 22 * u, r.bottom - 58 * u, r.right - 22 * u, r.bottom - 18 * u);
+                RectF pill = new RectF(r.left + 14 * u, r.bottom - 58 * u, r.right - 14 * u, r.bottom - 18 * u);
                 p.setColor(Color.argb(90, 0, 0, 0));
                 c.drawRoundRect(pill, 20 * u, 20 * u, p);
                 text(c, price, pill.centerX(), pill.centerY(), 22 * u, Color.rgb(255, 225, 120), Paint.Align.CENTER, pill.width() - 16 * u);
@@ -291,7 +293,7 @@ public class SupportActivity extends Activity {
             switch (e.getActionMasked()) {
                 case MotionEvent.ACTION_DOWN:
                     down = -1;
-                    for (int i = 0; i < 3; ++i) if (cards[i].contains(x, y)) down = i;
+                    for (int i = 0; i < N; ++i) if (cards[i].contains(x, y)) down = i;
                     if (back.contains(x, y)) down = 9;
                     if (down >= 0) performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY);
                     return true;
@@ -299,7 +301,7 @@ public class SupportActivity extends Activity {
                     int d = down;
                     down = -1;
                     if (d == 9 && back.contains(x, y)) finish();
-                    else if (d >= 0 && d < 3 && cards[d].contains(x, y)) buy(d);
+                    else if (d >= 0 && d < N && cards[d].contains(x, y)) buy(d);
                     return true;
                 }
                 case MotionEvent.ACTION_CANCEL:

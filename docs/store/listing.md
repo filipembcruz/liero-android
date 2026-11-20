@@ -3,7 +3,7 @@
 Assets: `icon-512.png` (app icon), `feature-1024x500.png` (feature graphic).
 Phone screenshots: take them from the CI (`ci-screenshots-store` branch, `emulator/` and `desktop/`).
 In-app products to create in Play Console (type: one-time, consumable):
-`tip_small` (≈ US$ 1.99), `tip_medium` (≈ US$ 4.99), `tip_large` (≈ US$ 9.99).
+`tip_2` (US$ 2), `tip_5` (US$ 5), `tip_10` (US$ 10), `tip_20` (US$ 20), `tip_50` (US$ 50) — consumíveis, com várias unidades por compra.
 Privacy policy URL: https://github.com/filipembcruz/liero-android/blob/store/PRIVACY.md
 Category: Games › Action. Content: cartoon violence. No ads. No data collected.
 
