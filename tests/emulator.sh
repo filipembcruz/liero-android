@@ -6,12 +6,14 @@
 #   tests/emulator.sh <apk> <out dir>
 set -uo pipefail
 APK="$1"; OUT="$2"
-PKG=be.liero.mobile
 mkdir -p "$OUT"
 adb wait-for-device
 adb shell settings put global window_animation_scale 0
 adb shell settings put system accelerometer_rotation 0
 adb install -r "$APK" || exit 1
+# applicationId differs per flavour (main: be.liero.mobile, store: Tunnel Clash id); code package is fixed
+PKG=$(adb shell pm list packages | sed -n 's/^package://p' | tr -d '\r' | grep -E 'tunnelclash|liero' | head -1)
+echo "package $PKG"
 adb logcat -c
 
 shot() { adb exec-out screencap -p > "$OUT/$1.png"; echo "shot $1"; }
@@ -34,19 +36,19 @@ x,y=pos[k]; print(int(x),int(y))
 PY
 }
 
-adb shell am start -W -n $PKG/.LauncherActivity
+adb shell am start -W -n $PKG/be.liero.mobile.LauncherActivity
 sleep 4
 shot 01_menu
 
 # Loading screen (frozen at 62% for the screenshot)
 adb shell am force-stop $PKG
-adb shell am start -W -n $PKG/.LauncherActivity --ez screenshot_loading true
+adb shell am start -W -n $PKG/be.liero.mobile.LauncherActivity --ez screenshot_loading true
 sleep 3
 shot 02_loading
 adb shell am force-stop $PKG
 
 # Settings + stats screens
-adb shell am start -W -n $PKG/.LauncherActivity; sleep 3
+adb shell am start -W -n $PKG/be.liero.mobile.LauncherActivity; sleep 3
 read X Y < <(btn custom); adb shell input tap $X $Y; sleep 2; shot 03_personalizar
 # compact panel tabs (PanelView): 4 tabs right-aligned in the panel header
 for T in 1 2 3; do
