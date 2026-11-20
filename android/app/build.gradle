@@ -16,7 +16,7 @@ android {
         versionName vName
         externalNativeBuild {
             cmake {
-                arguments "-DANDROID_STL=c++_shared", "-DSDL_STATIC=OFF", "-DSDL_SHARED=ON", "-DSDL_TEST=OFF"
+                arguments "-DANDROID_STL=c++_shared", "-DANDROID_SUPPORT_FLEXIBLE_PAGE_SIZES=ON", "-DSDL_STATIC=OFF", "-DSDL_SHARED=ON", "-DSDL_TEST=OFF"
                 cppFlags "-std=c++14"
             }
         }

@@ -165,6 +165,16 @@ jobs:
           mkdir -p ../out && cp app/build/outputs/apk/release/app-release.apk ../out/liero-mobile.apk
           cp app/build/outputs/bundle/release/app-release.aab ../out/tunnel-clash.aab
           ls -la ../out
+          # Google Play requires 16 KB page-size compatible native libraries.
+          rm -rf /tmp/pgchk && mkdir /tmp/pgchk && unzip -q ../out/liero-mobile.apk 'lib/*' -d /tmp/pgchk
+          RE=$(ls "$ANDROID_HOME"/ndk/*/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-readelf | head -1)
+          bad=0
+          for so in /tmp/pgchk/lib/arm64-v8a/*.so /tmp/pgchk/lib/x86_64/*.so; do
+            al=$("$RE" -lW "$so" | awk '$1=="LOAD"{print $NF}' | sort -u | tr '\n' ' ')
+            echo "$(basename "$so") [$(basename "$(dirname "$so")")]: $al"
+            for a in $al; do [ $((a)) -ge 16384 ] || bad=1; done
+          done
+          [ $bad = 0 ] || { echo "::error::native library not 16 KB aligned"; exit 1; }
       - uses: actions/upload-artifact@v4
         with:
           name: apk
