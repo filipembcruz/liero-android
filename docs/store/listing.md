@@ -81,12 +81,12 @@ Tunnel Clash est un duel 2D rapide et chaotique où toute la carte est destructi
 • Succès et statistiques
 • Sans publicité, sans pay-to-win, sans collecte de données
 
-Tunnel Clash est créé par un seul développeur indépendant. S'il vous plaît, vous pouvez soutenir le développement avec une contribution facultative dans le jeu : elle ne débloque rien d'autre qu'un cœur à côté de votre nom et aide à apporter le multijoueur et de nouvelles cartes.
+Tunnel Clash est créé par un seul développeur indépendant. Si le jeu vous plaît, vous pouvez soutenir le développement avec une contribution facultative dans le jeu : elle ne débloque rien d'autre qu'un cœur à côté de votre nom et aide à apporter le multijoueur et de nouvelles cartes.
 
 ---------------------------------------------------------------------------
 ## Deutsch
 **Titel:** Tunnel Clash
-**Kurzbeschreibung:** Graben, schwingen, sprengen! Schnelles 2D-Tunnel-Duell gegen die KI. Ohne Werbung.
+**Kurzbeschreibung:** Graben, schwingen, sprengen! Schnelles 2D-Tunnel-Duell gegen die KI. Werbefrei.
 **Vollständige Beschreibung:**
 Tunnel Clash ist ein schnelles, chaotisches 2D-Deathmatch, in dem die ganze Karte zerstörbar ist. Grabe Tunnel, schwing dich am Ninja-Seil und wähle 5 von 40 Waffen — Bazookas, Minen, Laser, Atombomben und die legendäre Bananenbombe —, um die KI zu besiegen.
 
