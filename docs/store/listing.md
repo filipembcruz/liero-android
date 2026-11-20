@@ -10,7 +10,7 @@ Category: Games › Action. Content: cartoon violence. No ads. No data collected
 ---------------------------------------------------------------------------
 ## English (default)
 **Title (30):** Tunnel Clash
-**Short description (80):** Dig, swing and blast! Fast 2D tunnel deathmatch against the CPU. No ads.
+**Short description (80):** Dig, swing, blast! 2D tunnel deathmatch vs CPU. Touch or Bluetooth gamepad.
 **Full description:**
 Tunnel Clash is a fast, chaotic 2D deathmatch where the whole map is destructible. Dig tunnels, swing on your ninja rope and pick 5 weapons out of 40 — bazookas, mines, lasers, nukes and the legendary banana bomb — to take down the CPU.
 
@@ -29,7 +29,7 @@ Tunnel Clash is made by a single independent developer. If you enjoy it, you can
 ---------------------------------------------------------------------------
 ## Português (Brasil)
 **Título:** Tunnel Clash
-**Descrição curta:** Cave, balance e exploda! Mata-mata 2D em túneis contra a CPU. Sem anúncios.
+**Descrição curta:** Cave, balance, exploda! Mata-mata 2D em túneis. Toque ou controle Bluetooth.
 **Descrição completa:**
 Tunnel Clash é um mata-mata 2D rápido e caótico em que o mapa inteiro é destrutível. Cave túneis, balance na corda ninja e escolha 5 de 40 armas — bazucas, minas, lasers, bombas nucleares e a lendária bomba-banana — para derrotar a CPU.
 
@@ -48,7 +48,7 @@ Tunnel Clash é feito por um único desenvolvedor independente. Se você curtir,
 ---------------------------------------------------------------------------
 ## Español
 **Título:** Tunnel Clash
-**Descripción breve:** ¡Cava, balancéate y explota! Duelo 2D en túneles contra la CPU. Sin anuncios.
+**Descripción breve:** ¡Cava, balancéate, explota! Duelo 2D en túneles. Táctil o mando Bluetooth.
 **Descripción completa:**
 Tunnel Clash es un duelo 2D rápido y caótico donde todo el mapa es destructible. Cava túneles, balancéate con la cuerda ninja y elige 5 de 40 armas — bazucas, minas, láseres, bombas nucleares y la legendaria bomba plátano — para vencer a la CPU.
 
@@ -67,7 +67,7 @@ Tunnel Clash está hecho por un único desarrollador independiente. Si te gusta,
 ---------------------------------------------------------------------------
 ## Français
 **Titre :** Tunnel Clash
-**Description courte :** Creusez, balancez-vous, explosez ! Duel 2D en tunnels contre l'IA. Sans pub.
+**Description courte :** Creusez, balancez-vous, explosez ! Duel 2D. Tactile ou manette Bluetooth.
 **Description complète :**
 Tunnel Clash est un duel 2D rapide et chaotique où toute la carte est destructible. Creusez des tunnels, balancez-vous avec la corde ninja et choisissez 5 armes parmi 40 — bazookas, mines, lasers, bombes nucléaires et la légendaire bombe banane — pour battre l'IA.
 
@@ -86,7 +86,7 @@ Tunnel Clash est créé par un seul développeur indépendant. Si le jeu vous pl
 ---------------------------------------------------------------------------
 ## Deutsch
 **Titel:** Tunnel Clash
-**Kurzbeschreibung:** Graben, schwingen, sprengen! Schnelles 2D-Tunnel-Duell gegen die KI. Werbefrei.
+**Kurzbeschreibung:** Graben, schwingen, sprengen! 2D-Tunnel-Duell. Touch oder Bluetooth-Controller.
 **Vollständige Beschreibung:**
 Tunnel Clash ist ein schnelles, chaotisches 2D-Deathmatch, in dem die ganze Karte zerstörbar ist. Grabe Tunnel, schwing dich am Ninja-Seil und wähle 5 von 40 Waffen — Bazookas, Minen, Laser, Atombomben und die legendäre Bananenbombe —, um die KI zu besiegen.
 
