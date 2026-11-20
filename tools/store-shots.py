@@ -58,8 +58,11 @@ def shadowed(img, blur=18, off=(10, 14), alpha=150):
     return canvas, pad
 
 
-def text(d, xy, s, size, fill=(255, 255, 255), anchor="mm", stroke=8):
+def text(d, xy, s, size, fill=(255, 255, 255), anchor="mm", stroke=8, maxw=1300):
     f = ImageFont.truetype(FONT, size)
+    while size > 20 and d.textlength(s, font=f) + stroke * 2 > maxw:
+        size -= 2
+        f = ImageFont.truetype(FONT, size)
     d.text(xy, s, font=f, fill=fill, anchor=anchor, stroke_width=stroke, stroke_fill=(30, 12, 45))
 
 
@@ -73,12 +76,12 @@ def backdrop(path, dim=0.55, blur=0):
     return ImageEnhance.Brightness(bg).enhance(dim).convert("RGBA")
 
 
-def lineup(out):
+def lineup(out, title, sub, labels):
     im = backdrop(os.path.join(ROOT, "art/source/cave_background.png"), 0.45)
     d = ImageDraw.Draw(im)
-    text(d, (W // 2, 120), "PICK YOUR FIGHTER", 104, (255, 214, 90))
-    text(d, (W // 2, 215), "4 hand-drawn looks + the classic pixel style", 44, stroke=6)
-    names = [("worm", "WIGGLER"), ("mole", "MOLE"), ("army", "SOLDIER"), ("bot", "ROBOT")]
+    text(d, (W // 2, 120), title, 104, (255, 214, 90), maxw=1700)
+    text(d, (W // 2, 215), sub, 44, stroke=6, maxw=1700)
+    names = list(zip(["worm", "mole", "army", "bot"], labels))
     slot = W // 4
     for i, (k, label) in enumerate(names):
         f = fit_h(frame(k, 0, 0), 470)
@@ -87,7 +90,7 @@ def lineup(out):
         im.alpha_composite(s, (cx - f.width // 2 - pad, 860 - f.height - pad))
         # pedestal
         d.ellipse((cx - 170, 845, cx + 170, 885), fill=(0, 0, 0, 90))
-        text(d, (cx, 950), label, 64, (255, 255, 255))
+        text(d, (cx, 950), label, 64, (255, 255, 255), maxw=slot - 40)
     im.convert("RGB").save(out, quality=92)
 
 
@@ -114,24 +117,61 @@ def gameplay(shot, char, pose, title, sub, out, side="right"):
     im.convert("RGB").save(out, quality=92)
 
 
+CAPTIONS = {
+    "en": ["PICK YOUR FIGHTER", "4 hand-drawn looks + the classic pixel style", ["WIGGLER", "MOLE", "SOLDIER", "ROBOT"],
+           ("40 WEAPONS. ALL CHAOS.", "Bazookas, mines, lasers, nukes and the banana bomb"),
+           ("MOLES DIG DEEPER", "Tunnel through fully destructible maps"),
+           ("SOLDIERS ON THE MOVE", "Fast 2D tunnel deathmatch against the CPU"),
+           ("ROBOTS NEVER QUIT", "10 map themes, touch or Bluetooth gamepad"),
+           ("SWING, DIG, SURVIVE", "Ninja rope and fully destructible terrain")],
+    "pt-BR": ["ESCOLHA SEU LUTADOR", "4 visuais desenhados + o estilo pixel clássico", ["MINHOCA", "TOUPEIRA", "SOLDADO", "ROBÔ"],
+              ("40 ARMAS. CAOS TOTAL.", "Bazucas, minas, lasers, bombas nucleares e a bomba-banana"),
+              ("TOUPEIRAS CAVAM FUNDO", "Cave túneis em mapas totalmente destrutíveis"),
+              ("SOLDADOS EM AÇÃO", "Mata-mata 2D rápido em túneis contra a CPU"),
+              ("ROBÔS NÃO DESISTEM", "10 temas de mapa, toque ou controle Bluetooth"),
+              ("BALANCE, CAVE, SOBREVIVA", "Corda ninja e terreno totalmente destrutível")],
+    "pt-PT": ["ESCOLHE O TEU LUTADOR", "4 visuais desenhados + o estilo píxel clássico", ["MINHOCA", "TOUPEIRA", "SOLDADO", "ROBÔ"],
+              ("40 ARMAS. CAOS TOTAL.", "Bazucas, minas, lasers, bombas nucleares e a bomba-banana"),
+              ("TOUPEIRAS ESCAVAM FUNDO", "Escava túneis em mapas totalmente destrutíveis"),
+              ("SOLDADOS EM AÇÃO", "Duelo 2D rápido em túneis contra o CPU"),
+              ("ROBÔS NÃO DESISTEM", "10 temas de mapa, toque ou comando Bluetooth"),
+              ("BALANÇA, ESCAVA, SOBREVIVE", "Corda ninja e terreno totalmente destrutível")],
+    "es": ["ELIGE TU LUCHADOR", "4 aspectos dibujados + el estilo píxel clásico", ["LOMBRIZ", "TOPO", "SOLDADO", "ROBOT"],
+           ("40 ARMAS. CAOS TOTAL.", "Bazucas, minas, láseres, bombas nucleares y la bomba plátano"),
+           ("LOS TOPOS CAVAN HONDO", "Cava túneles en mapas totalmente destructibles"),
+           ("SOLDADOS EN ACCIÓN", "Duelo 2D rápido en túneles contra la CPU"),
+           ("LOS ROBOTS NO SE RINDEN", "10 temas de mapa, táctil o mando Bluetooth"),
+           ("BALANCÉATE, CAVA, SOBREVIVE", "Cuerda ninja y terreno totalmente destructible")],
+    "fr": ["CHOISISSEZ VOTRE COMBATTANT", "4 apparences dessinées + le style pixel d'origine", ["LOMBRIC", "TAUPE", "SOLDAT", "ROBOT"],
+           ("40 ARMES. CHAOS TOTAL.", "Bazookas, mines, lasers, bombes nucléaires et la bombe banane"),
+           ("LES TAUPES CREUSENT", "Creusez des tunnels dans des cartes destructibles"),
+           ("SOLDATS EN ACTION", "Duel 2D rapide en tunnels contre l'IA"),
+           ("LES ROBOTS NE LÂCHENT RIEN", "10 thèmes de carte, tactile ou manette Bluetooth"),
+           ("BALANCEZ, CREUSEZ, SURVIVEZ", "Corde ninja et terrain entièrement destructible")],
+    "de": ["WÄHLE DEINEN KÄMPFER", "4 gezeichnete Looks + der klassische Pixelstil", ["WÜRMCHEN", "MAULWURF", "SOLDAT", "ROBOTER"],
+           ("40 WAFFEN. PURES CHAOS.", "Bazookas, Minen, Laser, Atombomben und die Bananenbombe"),
+           ("MAULWÜRFE GRABEN TIEF", "Grabe Tunnel durch komplett zerstörbare Karten"),
+           ("SOLDATEN IM EINSATZ", "Schnelles 2D-Tunnel-Duell gegen die KI"),
+           ("ROBOTER GEBEN NIE AUF", "10 Kartenthemen, Touch oder Bluetooth-Controller"),
+           ("SCHWINGEN, GRABEN, ÜBERLEBEN", "Ninja-Seil und komplett zerstörbares Gelände")],
+}
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--shots", required=True, help="dir with CI 1920x1080 gameplay screenshots")
     ap.add_argument("--out", default=os.path.join(ROOT, "docs/store/screenshots"))
     a = ap.parse_args()
-    os.makedirs(a.out, exist_ok=True)
     S = lambda n: os.path.join(a.shots, n + ".png")
-    lineup(os.path.join(a.out, "01_fighters.jpg"))
-    gameplay(S("04_firing"), "worm", (1, 1), "40 WEAPONS. ALL CHAOS.", "Bazookas, mines, lasers, nukes and the banana bomb",
-             os.path.join(a.out, "02_worms.jpg"), "right")
-    gameplay(S("13_skin_toupeiras"), "mole", (1, 0), "MOLES DIG DEEPER", "Tunnel through fully destructible maps",
-             os.path.join(a.out, "03_moles.jpg"), "left")
-    gameplay(S("14_skin_soldados"), "army", (2, 0), "SOLDIERS ON THE MOVE", "Fast 2D tunnel deathmatch against the CPU",
-             os.path.join(a.out, "04_soldiers.jpg"), "right")
-    gameplay(S("15_skin_robos"), "bot", (1, 1), "ROBOTS NEVER QUIT", "10 map themes, touch or gamepad controls",
-             os.path.join(a.out, "05_robots.jpg"), "left")
-    gameplay(S("06_ninja_rope"), "worm", (3, 1), "SWING, DIG, SURVIVE", "Ninja rope and fully destructible terrain",
-             os.path.join(a.out, "06_rope.jpg"), "right")
+    plan = [("04_firing", "worm", (1, 1), "02_worms", "right"), ("13_skin_toupeiras", "mole", (1, 0), "03_moles", "left"),
+            ("14_skin_soldados", "army", (2, 0), "04_soldiers", "right"), ("15_skin_robos", "bot", (1, 1), "05_robots", "left"),
+            ("06_ninja_rope", "worm", (3, 1), "06_rope", "right")]
+    for lang, c in CAPTIONS.items():
+        out = os.path.join(a.out, lang)
+        os.makedirs(out, exist_ok=True)
+        lineup(os.path.join(out, "01_fighters.jpg"), c[0], c[1], c[2])
+        for (shot, char, pose, name, side), (title, sub) in zip(plan, c[3:]):
+            gameplay(S(shot), char, pose, title, sub, os.path.join(out, name + ".jpg"), side)
 
 
 if __name__ == "__main__":
