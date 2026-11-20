@@ -127,7 +127,8 @@ public class SupportActivity extends Activity {
         List<QueryProductDetailsParams.Product> list = new ArrayList<>();
         for (String id : PRODUCTS)
             list.add(QueryProductDetailsParams.Product.newBuilder().setProductId(id).setProductType(BillingClient.ProductType.INAPP).build());
-        billing.queryProductDetailsAsync(QueryProductDetailsParams.newBuilder().setProductList(list).build(), (r, found) -> {
+        billing.queryProductDetailsAsync(QueryProductDetailsParams.newBuilder().setProductList(list).build(), (r, result) -> {
+            List<ProductDetails> found = result != null ? result.getProductDetailsList() : null;
             if (found != null)
                 for (ProductDetails d : found)
                     for (int i = 0; i < PRODUCTS.length; ++i)
