@@ -20,13 +20,13 @@ import java.util.Map;
 final class Prefs {
     static final String[] DIFFICULTY = { "Fácil", "Médio", "Difícil" };
     static final String[] DIFFICULTY_INFO = {
-        "CPU original do Liero 1.33",
+        "CPU clássica original",
         "IA preditiva (olha 0,5 s à frente)",
         "IA preditiva completa (2 s à frente)" };
     static final int[] LIVES = { 1, 3, 5, 10, 15, 20, 30, 50, 99 };
     static final String[] VISUALS = { "Clássico", "Suave", "Minhocas", "Toupeiras", "Soldados", "Robôs" };
     static final String[] VISUAL_INFO = {
-        "Pixels originais do Liero", "Pixels suavizados (Scale2x)", "Minhocas desenhadas, armas e explosões",
+        "Pixels originais (clássico)", "Pixels suavizados (Scale2x)", "Minhocas desenhadas, armas e explosões",
         "Toupeiras com sucata numa mina", "Soldados comando com arsenal de brinquedo", "Robôs com armas de energia" };
     static final String[] PAD_ACTIONS = { "Atirar", "Pular", "Corda ninja", "Trocar (segurar)", "Próxima arma", "Arma anterior", "Cavar", "Pausa" };
     static final String[] PAD_KEYS = { "padFire", "padJump", "padRope", "padChange", "padNext", "padPrev", "padDig", "padPause" };
@@ -39,7 +39,7 @@ final class Prefs {
             case 7: return "L3"; case 8: return "R3"; case 9: return "LB / L1"; case 10: return "RB / R1";
             case 100: return "LT / L2"; case 101: return "RT / R2";
             case -1: return "—";
-            default: return "Botão " + code;
+            default: return I18n.t("Botão") + " " + code;
         }
     }
 

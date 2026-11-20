@@ -51,17 +51,17 @@ public class StatsActivity extends PanelActivity {
             r.add(stat("Derrotas", null, String.valueOf(tl), true));
             r.add(stat("Empates", null, String.valueOf(td), true));
             r.add(stat("Aproveitamento", "Vitórias / partidas", total == 0 ? "—" : (100 * tw / total) + "%", true));
-            r.add(stat("Abates", "Melhor sequência de vitórias: " + bestStreak, String.valueOf(kills), true));
+            r.add(stat("Abates", I18n.t("Melhor sequência de vitórias:") + " " + bestStreak, String.valueOf(kills), true));
         } else if (tab == 1) {
             for (int i = 0; i < 3; ++i)
-                r.add(stat("CPU " + Prefs.DIFFICULTY[i], Prefs.DIFFICULTY_INFO[i], w[i] + " V · " + l[i] + " D · " + d[i] + " E", w[i] + l[i] + d[i] > 0));
+                r.add(stat("CPU " + I18n.t(Prefs.DIFFICULTY[i]), Prefs.DIFFICULTY_INFO[i], String.format(I18n.t("%1$d V · %2$d D · %3$d E"), w[i], l[i], d[i]), w[i] + l[i] + d[i] > 0));
         } else {
             r.add(trophy("Primeiro sangue", "Vença uma partida", tw >= 1));
             r.add(trophy("Veterano", "Jogue 10 partidas", total >= 10));
             r.add(trophy("Exterminador", "Vença 10 partidas", tw >= 10));
             r.add(trophy("Sequência", "Vença 3 seguidas", bestStreak >= 3));
             r.add(trophy("Desafio médio", "Vença a CPU no Médio", w[1] >= 1));
-            r.add(trophy("Mestre do Liero", "Vença a CPU no Difícil", w[2] >= 1));
+            r.add(trophy("Mestre dos túneis", "Vença a CPU no Difícil", w[2] >= 1));
             r.add(trophy("Carnificina", "Some 100 abates", kills >= 100));
         }
         return r;

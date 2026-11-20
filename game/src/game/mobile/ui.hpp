@@ -27,8 +27,13 @@ void setAlpha(float a);
 float alpha();
 
 // Text (UTF-8). px = cap-ish height in screen pixels (font em size).
+// text()/textWidth() translate the string (i18n); the *Raw variants draw it as is
+// (player names, numbers already formatted, ...).
 float textWidth(std::string const& s, float px);
+float textWidthRaw(std::string const& s, float px);
 void text(SDL_Renderer* r, std::string const& s, float x, float y, float px, SDL_Color c,
+	int align = Left, bool shadow = true);
+void textRaw(SDL_Renderer* r, std::string const& s, float x, float y, float px, SDL_Color c,
 	int align = Left, bool shadow = true);
 
 // Shapes

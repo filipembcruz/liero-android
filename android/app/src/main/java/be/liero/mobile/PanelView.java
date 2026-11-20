@@ -92,6 +92,7 @@ class PanelView extends LauncherActivity.SceneView {
 
     /** Text vertically centred on cy; shrinks to fit maxW. */
     private void text(Canvas c, String s, float x, float cy, float size, int col, Paint.Align a, float maxW, boolean shadow) {
+        s = I18n.t(s);
         p.setTextSize(size);
         if (maxW > 0) {
             float tw = p.measureText(s);

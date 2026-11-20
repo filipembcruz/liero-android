@@ -29,6 +29,14 @@ public class SettingsActivity extends PanelActivity {
         List<Row> r = new ArrayList<>();
         switch (tab) {
             case 0: {
+                r.add(step("Idioma", "Language", () -> {
+                    int li = prefs.get("lang", 0);
+                    return li == 0 ? I18n.t("Automático") + " (" + I18n.NAMES[I18n.current()] + ")" : I18n.NAMES[li - 1];
+                }, d -> {
+                    int li = clamp(prefs.get("lang", 0) + d, 0, I18n.CODES.length);
+                    put("lang", li);
+                    I18n.setLanguage(li);
+                }));
                 r.add(edit("Seu nome", "Toque para mudar", prefs::name, d -> editName()));
                 r.add(step("Dificuldade da CPU", Prefs.DIFFICULTY_INFO[prefs.difficulty()],
                     () -> Prefs.DIFFICULTY[prefs.difficulty()], d -> put("difficulty", clamp(prefs.difficulty() + d, 0, 2))));
@@ -61,7 +69,7 @@ public class SettingsActivity extends PanelActivity {
                     final int act = a;
                     r.add(pad(Prefs.PAD_ACTIONS[a], () -> Prefs.padName(get(Prefs.PAD_KEYS[act], Prefs.PAD_DEFAULT[act])), d -> {
                         capturing = act;
-                        panel.overlay = "Aperte o botão para: " + Prefs.PAD_ACTIONS[act];
+                        panel.overlay = I18n.t("Aperte o botão para: ") + I18n.t(Prefs.PAD_ACTIONS[act]);
                         panel.invalidate();
                     }));
                 }
@@ -109,15 +117,15 @@ public class SettingsActivity extends PanelActivity {
         t.setFilters(new InputFilter[] { new InputFilter.LengthFilter(20) });
         t.setSelectAllOnFocus(true);
         new AlertDialog.Builder(this)
-            .setTitle("Seu nome")
+            .setTitle(I18n.t("Seu nome"))
             .setView(t)
-            .setPositiveButton("OK", (dlg, w) -> {
+            .setPositiveButton(I18n.t("OK"), (dlg, w) -> {
                 String v = t.getText().toString().trim();
                 prefs.edit().putString("name", v.isEmpty() ? "Jogador" : v).apply();
                 panel.invalidate();
                 hideSystemUi();
             })
-            .setNegativeButton("Cancelar", (dlg, w) -> hideSystemUi())
+            .setNegativeButton(I18n.t("Cancelar"), (dlg, w) -> hideSystemUi())
             .show();
     }
 }

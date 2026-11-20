@@ -32,6 +32,8 @@ struct Config
 	int hudOpacity = 100; // %
 	int hudAutoFade = 1;  // fade HUD panels that cover your worm
 	int marker = 1;       // arrow above your worm
+	int supporter = 0;    // tipped the developer (Google Play): heart by the name
+	int lang = 0;         // 0 = device language, 1.. = i18n::codes[lang - 1]
 	int theme = 0;        // map theme (drawn visuals): 0..9, see hd.cpp themes[]
 
 	// Gamepad mapping (direction keys are fixed: D-pad / left stick).

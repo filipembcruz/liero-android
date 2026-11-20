@@ -5,13 +5,13 @@ def vName = System.getenv("VERSION_NAME") ?: "0.1.0-dev"
 
 android {
     namespace 'be.liero.mobile'
-    compileSdk 34
+    compileSdk 36
     ndkVersion "27.2.12479018"
 
     defaultConfig {
-        applicationId "be.liero.mobile"
+        applicationId "io.github.filipembcruz.tunnelclash"
         minSdk 24
-        targetSdk 34
+        targetSdk 36
         versionCode vCode
         versionName vName
         externalNativeBuild {
@@ -63,4 +63,9 @@ android {
         targetCompatibility JavaVersion.VERSION_17
     }
     packagingOptions { jniLibs { useLegacyPackaging false } }
+}
+
+dependencies {
+    // Google Play Billing: voluntary "support the developer" tips (consumables)
+    implementation 'com.android.billingclient:billing:7.1.1'
 }

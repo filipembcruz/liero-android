@@ -13,7 +13,7 @@ from PIL import Image, ImageDraw, ImageFont
 FONT = sys.argv[1] if len(sys.argv) > 1 else "/usr/share/fonts/truetype/google-fonts/Poppins-Bold.ttf"
 OUT = sys.argv[2] if len(sys.argv) > 2 else "game/ui/font.bin"
 SIZE = 56
-chars = [chr(c) for c in range(32, 127)] + list("áàâãäéêèëíìîïóòôõöúùûüçñÁÀÂÃÄÉÊÈËÍÌÎÏÓÒÔÕÖÚÙÛÜÇÑ°ºª×·•…–—♥☠←→↑↓")
+chars = [chr(c) for c in range(32, 127)] + list("áàâãäéêèëíìîïóòôõöúùûüçñÁÀÂÃÄÉÊÈËÍÌÎÏÓÒÔÕÖÚÙÛÜÇÑßẞœŒæÆÿŸ¿¡«»‹›‘’“”„°ºª×·•…–—♥☠←→↑↓€")
 font = ImageFont.truetype(FONT, SIZE)
 asc, desc = font.getmetrics()
 pad = 3

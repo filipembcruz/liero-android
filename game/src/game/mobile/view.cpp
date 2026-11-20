@@ -434,8 +434,15 @@ void View::drawHud(SDL_Renderer* r, Game& g)
 		sx -= 24 * s;
 		// name, shrunk to the space left
 		std::string nm = w.settings->name;
-		float nmPx = std::min(20 * s, (sx - x0 - 8 * s) / std::max(1.0f, ui::textWidth(nm, 1.0f)));
-		ui::text(r, nm, x0, ny, nmPx, ui::rgba(255, 255, 255));
+		float nx = x0;
+		if (config.supporter && i < order.size() && order[i] == g.worms[0])
+		{
+			// supporter heart (tipped the developer)
+			ui::icon(r, ui::IHeart, nx + 8 * s, ny, 9 * s, ui::rgba(255, 96, 140));
+			nx += 22 * s;
+		}
+		float nmPx = std::min(20 * s, (sx - nx - 8 * s) / std::max(1.0f, ui::textWidth(nm, 1.0f)));
+		ui::text(r, nm, nx, ny, nmPx, ui::rgba(255, 255, 255));
 		// health bar + percentage
 		float hp = std::max(0, w.health) / float(std::max(1, w.settings->health)); // also before (re)spawn
 		char pbuf[8];

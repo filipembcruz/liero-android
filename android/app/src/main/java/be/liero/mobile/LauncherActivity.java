@@ -61,6 +61,7 @@ public class LauncherActivity extends Activity {
     @Override
     protected void onCreate(Bundle b) {
         super.onCreate(b);
+        I18n.init(this);
         font(this);
         if (Build.VERSION.SDK_INT >= 28) {
             WindowManager.LayoutParams lp = getWindow().getAttributes();
@@ -87,6 +88,27 @@ public class LauncherActivity extends Activity {
             loading = null;
         }
         hideSystemUi();
+        if (backFromGame) {
+            backFromGame = false;
+            maybeAskSupport();
+        }
+    }
+
+    private boolean backFromGame;
+
+    /** After a few matches, invite the player (gently, now and then) to support the developer. */
+    private void maybeAskSupport() {
+        int matches = 0;
+        try (java.io.BufferedReader r = new java.io.BufferedReader(new java.io.FileReader(new java.io.File(getFilesDir(), "results.txt")))) {
+            while (r.readLine() != null) matches++;
+        } catch (Exception ignored) {}
+        Prefs p = new Prefs(this);
+        int last = p.get("supportAskedAt", 0);
+        int every = p.get("supporter", 0) != 0 ? 25 : 6; // supporters are asked much less often
+        if (matches >= 3 && matches - last >= (last == 0 ? 3 : every)) {
+            p.edit().putInt("supportAskedAt", matches).apply();
+            startActivity(new Intent(this, SupportActivity.class).putExtra("prompt", true));
+        }
     }
 
     @Override
@@ -111,6 +133,7 @@ public class LauncherActivity extends Activity {
     void play() {
         if (starting) return;
         starting = true;
+        backFromGame = true;
         showLoading(0f);
         final long t0 = SystemClock.uptimeMillis();
         new Thread(() -> {
@@ -118,7 +141,7 @@ public class LauncherActivity extends Activity {
                 AssetInstaller.install(this, p -> ui.post(() -> loading.setProgress(p * 0.85f)));
             } catch (Exception e) {
                 ui.post(() -> {
-                    Toast.makeText(this, "Erro ao instalar dados: " + e.getMessage(), Toast.LENGTH_LONG).show();
+                    Toast.makeText(this, I18n.t("Erro ao instalar dados: ") + e.getMessage(), Toast.LENGTH_LONG).show();
                     setContentView(menu);
                     starting = false;
                 });
@@ -193,7 +216,7 @@ public class LauncherActivity extends Activity {
 
     static final class Btn {
         RectF r = new RectF();
-        int id; String label; int icon; boolean primary, disabled, square;
+        int id; String label; int icon; boolean primary, disabled, square, heart;
         Btn(int id, String label, int icon, boolean primary, boolean disabled, boolean square) {
             this.id = id; this.label = label; this.icon = icon; this.primary = primary; this.disabled = disabled; this.square = square;
         }
@@ -203,11 +226,15 @@ public class LauncherActivity extends Activity {
         final List<Btn> btns = new ArrayList<>();
         Btn pressed;
         final Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
+        final RectF credits = new RectF();
+        boolean creditsDown;
 
         MenuView(Context c) {
             super(c);
             btns.add(new Btn(Z_PLAY, "JOGAR", Icons.PLAY, true, false, false));
-            btns.add(new Btn(Z_MULTI, "MULTIJOGADOR", Icons.PEOPLE, false, true, false));
+            Btn sup = new Btn(Z_MULTI, "APOIE O DEV", Icons.HEART, false, false, false);
+            sup.heart = true;
+            btns.add(sup);
             btns.add(new Btn(Z_CUSTOM, "PERSONALIZAR", Icons.TOOLS, false, false, false));
             btns.add(new Btn(Z_MAPS, "MAPAS", Icons.MAP, false, false, false));
             btns.add(new Btn(Z_GEAR, null, Icons.GEAR, false, false, true));
@@ -240,6 +267,15 @@ public class LauncherActivity extends Activity {
             layoutButtons();
             drawLogo(c, getWidth() / 2f, 10 * u, Math.min(getWidth() * 0.5f, 640 * u), getHeight() * 0.40f);
             for (Btn b : btns) Icons.button(c, p, b, b == pressed, u, font);
+            // discreet credits link (bottom-left)
+            p.setShader(null);
+            p.setTypeface(font);
+            p.setTextSize(17 * u);
+            p.setTextAlign(Paint.Align.LEFT);
+            p.setColor(Color.argb(creditsDown ? 255 : 170, 220, 225, 255));
+            String cl = I18n.t("Créditos e licenças");
+            c.drawText(cl, 24 * u, getHeight() - 22 * u, p);
+            credits.set(10 * u, getHeight() - 60 * u, 34 * u + p.measureText(cl), getHeight());
             postInvalidateOnAnimation();
         }
 
@@ -256,6 +292,7 @@ public class LauncherActivity extends Activity {
         public boolean onTouchEvent(MotionEvent e) {
             switch (e.getActionMasked()) {
                 case MotionEvent.ACTION_DOWN:
+                    creditsDown = credits.contains(e.getX(), e.getY());
                     pressed = hit(e.getX(), e.getY());
                     if (pressed != null) performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY);
                     return true;
@@ -263,6 +300,9 @@ public class LauncherActivity extends Activity {
                     if (pressed != null && hit(e.getX(), e.getY()) != pressed) pressed = null;
                     return true;
                 case MotionEvent.ACTION_UP:
+                    if (creditsDown && credits.contains(e.getX(), e.getY()))
+                        getContext().startActivity(new Intent(getContext(), CreditsActivity.class));
+                    creditsDown = false;
                     Btn b = pressed;
                     pressed = null;
                     if (b != null && hit(e.getX(), e.getY()) == b) onButton(b);
@@ -278,9 +318,7 @@ public class LauncherActivity extends Activity {
     void onButton(Btn b) {
         switch (b.id) {
             case Z_PLAY: play(); break;
-            case Z_MULTI:
-                Toast.makeText(this, "Multijogador chega numa próxima versão. Por enquanto: você contra a CPU.", Toast.LENGTH_SHORT).show();
-                break;
+            case Z_MULTI: startActivity(new Intent(this, SupportActivity.class)); break;
             case Z_CUSTOM: case Z_GEAR: startActivity(new Intent(this, SettingsActivity.class)); break;
             case Z_MAPS: startActivity(new Intent(this, MapsActivity.class)); break;
             case Z_STATS: startActivity(new Intent(this, StatsActivity.class)); break;
@@ -308,7 +346,7 @@ public class LauncherActivity extends Activity {
             p.setTextSize(30 * u);
             p.setColor(Color.WHITE);
             p.setShadowLayer(4 * u, 0, 2 * u, Color.argb(160, 0, 0, 0));
-            c.drawText("CARREGANDO…", w / 2f, h * 0.70f, p);
+            c.drawText(I18n.t("CARREGANDO…"), w / 2f, h * 0.70f, p);
             p.clearShadowLayer();
             float bw = Math.min(w * 0.55f, 900 * u), bh = 30 * u;
             RectF bar = new RectF(w / 2f - bw / 2, h * 0.74f, w / 2f + bw / 2, h * 0.74f + bh);
@@ -335,7 +373,8 @@ public class LauncherActivity extends Activity {
             }
             p.setTextSize(22 * u);
             p.setColor(Color.rgb(255, 205, 60));
-            String head = "DICA:  ";
+            String head = I18n.t("DICA:") + "  ";
+            String tip = I18n.t(this.tip);
             p.setTextAlign(Paint.Align.LEFT);
             float tw = p.measureText(head);
             Paint p2 = new Paint(p);

@@ -1,4 +1,5 @@
 #include "config.hpp"
+#include "i18n.hpp"
 #include "../settings.hpp"
 #include "../worm.hpp"
 
@@ -27,7 +28,7 @@ std::vector<Field> fields()
 		{ "smooth", &c.smooth, nullptr }, { "loadingTime", &c.loadingTime, nullptr },
 		{ "blood", &c.blood, nullptr }, { "minimap", &c.minimap, nullptr }, { "digButton", &c.digButton, nullptr },
 		{ "touchShow", &c.touchShow, nullptr }, { "hudOpacity", &c.hudOpacity, nullptr },
-		{ "hudAutoFade", &c.hudAutoFade, nullptr }, { "marker", &c.marker, nullptr }, { "mapTheme", &c.theme, nullptr },
+		{ "hudAutoFade", &c.hudAutoFade, nullptr }, { "marker", &c.marker, nullptr }, { "mapTheme", &c.theme, nullptr }, { "lang", &c.lang, nullptr }, { "supporter", &c.supporter, nullptr },
 	};
 	static const char* padKeys[Config::PadCount] = { "padFire", "padJump", "padRope", "padChange", "padNext", "padPrev", "padDig", "padPause" };
 	for (int i = 0; i < Config::PadCount; ++i)
@@ -71,6 +72,7 @@ void loadConfig()
 	c.smooth = clampi(c.smooth, 0, 5);
 	c.touchShow = clampi(c.touchShow, 0, 2);
 	c.theme = clampi(c.theme, 0, 9);
+	c.lang = clampi(c.lang, 0, 5);
 	c.hudOpacity = clampi(c.hudOpacity, 20, 100);
 	c.loadingTime = clampi(c.loadingTime, 0, 9999);
 	c.blood = clampi(c.blood, 0, 500);
@@ -96,7 +98,7 @@ std::string padButtonName(int code)
 	case 20: return "Touchpad";
 	case 100: return "LT / L2"; case 101: return "RT / R2";
 	case -1: return "—";
-	default: return "Botão " + std::to_string(code);
+	default: return T("Botão") + " " + std::to_string(code);
 	}
 }
 

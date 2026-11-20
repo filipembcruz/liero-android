@@ -38,6 +38,10 @@
             android:screenOrientation="sensorLandscape" />
         <activity android:name=".StatsActivity" android:exported="false"
             android:screenOrientation="sensorLandscape" />
+        <activity android:name=".CreditsActivity" android:exported="false"
+            android:screenOrientation="sensorLandscape" />
+        <activity android:name=".SupportActivity" android:exported="false"
+            android:screenOrientation="sensorLandscape" />
 
         <!-- The game runs in its own process so every match starts with fresh
              native state (OpenLiero uses globals); the process exits on quit. -->

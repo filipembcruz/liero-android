@@ -11,7 +11,7 @@ import android.graphics.Typeface;
 
 /** Vector icons and the chunky game-style buttons of the start screen. */
 final class Icons {
-    static final int PLAY = 1, PEOPLE = 2, TOOLS = 3, MAP = 4, GEAR = 5, BARS = 6, TROPHY = 7, BACK = 8, RESTART = 9;
+    static final int PLAY = 1, PEOPLE = 2, TOOLS = 3, MAP = 4, GEAR = 5, BARS = 6, TROPHY = 7, BACK = 8, RESTART = 9, HEART = 10;
 
     static void button(Canvas c, Paint p, LauncherActivity.Btn b, boolean pressed, float u, Typeface font) {
         RectF r = new RectF(b.r);
@@ -27,6 +27,7 @@ final class Icons {
         int top, bot, rim, text;
         if (b.primary) { top = Color.rgb(255, 222, 80); bot = Color.rgb(242, 160, 20); rim = Color.rgb(255, 244, 180); text = Color.rgb(60, 28, 8); }
         else { top = Color.rgb(112, 84, 214); bot = Color.rgb(70, 48, 150); rim = Color.rgb(170, 150, 255); text = Color.WHITE; }
+        if (b.heart) { top = Color.rgb(255, 104, 150); bot = Color.rgb(214, 40, 96); rim = Color.rgb(255, 190, 210); text = Color.WHITE; }
         if (b.disabled) { top = Color.rgb(70, 62, 110); bot = Color.rgb(50, 44, 84); rim = Color.rgb(100, 94, 140); text = Color.rgb(150, 145, 180); }
         p.setShader(new LinearGradient(0, r.top, 0, r.bottom, top, bot, Shader.TileMode.CLAMP));
         c.drawRoundRect(r, rad, rad, p);
@@ -49,23 +50,24 @@ final class Icons {
         float ts = r.height() * (b.primary ? 0.42f : 0.38f);
         p.setTextSize(ts);
         p.setTextAlign(Paint.Align.LEFT);
-        float tw = p.measureText(b.label);
+        String label = I18n.t(b.label);
+        float tw = p.measureText(label);
         float is = r.height() * 0.26f;
         float total = tw + is * 2.6f;
         float avail = r.width() - 2 * Math.max(18 * u, r.height() * 0.3f);
         if (total > avail) {
             float k = avail / total;
-            ts *= k; is *= k; p.setTextSize(ts); tw = p.measureText(b.label); total = tw + is * 2.6f;
+            ts *= k; is *= k; p.setTextSize(ts); tw = p.measureText(label); total = tw + is * 2.6f;
         }
         float x0 = r.centerX() - total / 2;
         draw(c, p, b.icon, x0 + is, r.centerY(), is, text);
         p.setColor(text);
         Paint.FontMetrics fm = p.getFontMetrics();
-        c.drawText(b.label, x0 + is * 2.6f, r.centerY() - (fm.ascent + fm.descent) / 2, p);
+        c.drawText(label, x0 + is * 2.6f, r.centerY() - (fm.ascent + fm.descent) / 2, p);
         if (b.disabled) {
-            // "EM BREVE" tag
+            // I18n.t("EM BREVE") tag
             p.setTextSize(r.height() * 0.24f);
-            String t = "EM BREVE";
+            String t = I18n.t("EM BREVE");
             float w = p.measureText(t) + 20 * u, h = r.height() * 0.36f;
             RectF tag = new RectF(r.right - w - 10 * u, r.top - h * 0.55f, r.right - 10 * u, r.top + h * 0.45f);
             p.setColor(Color.rgb(255, 205, 60));
@@ -147,6 +149,14 @@ final class Icons {
                 c.drawLine(x - s * 0.75f, y, x - s * 0.15f, y - s * 0.6f, p);
                 c.drawLine(x - s * 0.75f, y, x - s * 0.15f, y + s * 0.6f, p);
                 break;
+            case HEART: {
+                path.moveTo(x, y + s * 0.75f);
+                path.cubicTo(x - s * 1.1f, y - s * 0.05f, x - s * 0.7f, y - s * 0.95f, x, y - s * 0.38f);
+                path.cubicTo(x + s * 0.7f, y - s * 0.95f, x + s * 1.1f, y - s * 0.05f, x, y + s * 0.75f);
+                path.close();
+                c.drawPath(path, p);
+                break;
+            }
             case RESTART: {
                 p.setStyle(Paint.Style.STROKE); p.setStrokeWidth(s * 0.26f);
                 float R = s * 0.72f;

@@ -1,5 +1,6 @@
 #include "menu.hpp"
 #include "ui.hpp"
+#include "i18n.hpp"
 #include "view.hpp"
 #include "touch.hpp"
 #include "config.hpp"
@@ -275,7 +276,7 @@ int captureButton(Game* game, char const* action)
 		SDL_FRect p = { F.w / 2.0f - 380 * s, F.h / 2.0f - 130 * s, 760 * s, 260 * s };
 		ui::panel(F.r, p, s, 0.96f);
 		ui::icon(F.r, ui::IJoystick, p.x + p.w / 2, p.y + 58 * s, 26 * s, ui::rgba(255, 215, 90));
-		ui::text(F.r, std::string("Aperte o botão para: ") + action, p.x + p.w / 2, p.y + 120 * s, 30 * s, ui::rgba(255, 255, 255), ui::Center);
+		ui::text(F.r, T("Aperte o botão para: ") + T(action), p.x + p.w / 2, p.y + 120 * s, 30 * s, ui::rgba(255, 255, 255), ui::Center);
 		ui::text(F.r, "Toque na tela para cancelar", p.x + p.w / 2, p.y + 170 * s, 20 * s, ui::rgba(170, 185, 240), ui::Center, false);
 		int secs = 10 - (int)((SDL_GetTicks() - t0) / 1000);
 		ui::text(F.r, std::to_string(std::max(0, secs)), p.x + p.w / 2, p.y + 215 * s, 24 * s, ui::rgba(255, 215, 90), ui::Center);
@@ -371,6 +372,15 @@ void settingsScreen(Game* game)
 		else if (tab == 2)
 		{
 			std::vector<int> lt = { 0, 25, 50, 75, 100, 150, 200, 300, 500 };
+			{
+				int li = std::max(0, std::min(5, config.lang));
+				std::string lv = li == 0 ? T("Automático") + " (" + i18n::names[i18n::current()] + ")" : std::string(i18n::names[li - 1]);
+				if ((d = stepper(row(), "Idioma", lv, "Language")))
+				{
+					config.lang = std::max(0, std::min(5, config.lang + d));
+					i18n::setLanguage(config.lang);
+				}
+			}
 			if ((d = stepper(row(), "Tempo de carregamento", pct(config.loadingTime), "Recarga das armas (original: LOADING TIMES)"))) { config.loadingTime = cycle(config.loadingTime, d, lt); applyLive(); }
 			std::vector<int> lv = { 1, 3, 5, 10, 15, 20, 30, 50, 99 };
 			if ((d = stepper(row(), "Vidas", std::to_string(config.lives), "Vale a partir da próxima partida"))) { config.lives = cycle(config.lives, d, lv); }
@@ -385,7 +395,7 @@ void settingsScreen(Game* game)
 			static const char* fv[3] = { "Perto", "Amplo", "Máximo" };
 			if ((d = stepper(row(), "Campo de visão", fv[config.fov], "Amplo/Máximo mostram mais do mapa"))) { config.fov = std::max(0, std::min(2, config.fov + d)); }
 			static const char* vn[6] = { "Clássico", "Suave", "Minhocas", "Toupeiras", "Soldados", "Robôs" };
-			static const char* vi[6] = { "Pixels originais do Liero", "Pixels suavizados (Scale2x)", "Minhocas desenhadas, armas e explosões",
+			static const char* vi[6] = { "Pixels originais (clássico)", "Pixels suavizados (Scale2x)", "Minhocas desenhadas, armas e explosões",
 				"Toupeiras com sucata numa mina", "Soldados comando com arsenal de brinquedo", "Robôs com armas de energia" };
 			int vs = std::max(0, std::min(5, config.smooth));
 			if ((d = stepper(row(), "Visual", vn[vs], vi[vs]))) { config.smooth = std::max(0, std::min(5, config.smooth + d)); if (game) view.newGame(*game); }
@@ -433,7 +443,7 @@ MenuResult pauseMenu(Game* game, bool gameRunning, char lastResult)
 		SDL_FRect pnl = { (F.w - pw) / 2, (F.h - ph) / 2, pw, ph };
 		ui::panel(F.r, pnl, s, 0.92f);
 
-		std::string title = gameRunning ? "PAUSA" : (lastResult == 'W' ? "VITÓRIA!" : lastResult == 'L' ? "DERROTA" : lastResult == 'D' ? "EMPATE" : "LIERO");
+		std::string title = gameRunning ? "PAUSA" : (lastResult == 'W' ? "VITÓRIA!" : lastResult == 'L' ? "DERROTA" : lastResult == 'D' ? "EMPATE" : "TUNNEL CLASH");
 		SDL_Color tc = lastResult == 'W' && !gameRunning ? ui::rgba(255, 215, 80) : lastResult == 'L' && !gameRunning ? ui::rgba(255, 110, 110) : ui::rgba(255, 255, 255);
 		ui::text(F.r, title, pnl.x + pw / 2, pnl.y + 52 * s, 46 * s, tc, ui::Center);
 		if (game && game->worms.size() >= 2)
@@ -460,7 +470,7 @@ MenuResult pauseMenu(Game* game, bool gameRunning, char lastResult)
 		if (button(a, "AVANÇADO", false, ui::ISliders)) return MenuOriginal;
 		if (button(b, "SAIR", false, ui::IExit)) return MenuQuit;
 		if (!gameRunning && F.back) return MenuQuit;
-		ui::text(F.r, "Avançado = menu original do Liero (inglês)", pnl.x + pw / 2, pnl.y + ph - 24 * s, 16 * s, ui::rgba(150, 160, 210), ui::Center, false);
+		ui::text(F.r, "Avançado = menu clássico original (inglês)", pnl.x + pw / 2, pnl.y + ph - 24 * s, 16 * s, ui::rgba(150, 160, 210), ui::Center, false);
 		present();
 	}
 }

@@ -19,6 +19,7 @@ abstract class PanelActivity extends Activity {
     @Override
     protected void onCreate(Bundle b) {
         super.onCreate(b);
+        I18n.init(this);
         LauncherActivity.font(this);
         if (Build.VERSION.SDK_INT >= 28) {
             WindowManager.LayoutParams lp = getWindow().getAttributes();

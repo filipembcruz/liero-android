@@ -4,6 +4,7 @@
 #include "mobile/platform.hpp"
 #include "mobile/view.hpp"
 #include "mobile/ui.hpp"
+#include "mobile/i18n.hpp"
 #include "mobile/menu.hpp"
 #include "mobile/hd.hpp"
 #include "mobile/config.hpp"
@@ -505,7 +506,11 @@ void Gfx::onWindowResize(Uint32 windowID)
 			mobileGameRect = gr;
 			mobile::input.layout(w, h, gr);
 			if (!mobile::ui::ready())
+			{
 				mobile::ui::init(sdlRenderer, "ui/font.bin");
+				mobile::i18n::load("ui/lang.tsv");
+				mobile::i18n::setLanguage(mobile::config.lang);
+			}
 			if (!mobile::hd::ready())
 				mobile::hd::load(sdlRenderer, "ui/hd.bin");
 			mobile::view.setup(sdlRenderer, w, h);

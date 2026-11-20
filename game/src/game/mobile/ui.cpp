@@ -1,4 +1,5 @@
 #include "ui.hpp"
+#include "i18n.hpp"
 
 #include <cmath>
 #include <cstring>
@@ -89,7 +90,7 @@ bool init(SDL_Renderer* r, char const* path)
 
 bool ready() { return fontTex != nullptr; }
 
-float textWidth(std::string const& s, float px)
+float textWidthRaw(std::string const& s, float px)
 {
 	float k = px / atlasEm, w = 0;
 	for (std::size_t i = 0; i < s.size();)
@@ -119,11 +120,18 @@ static void drawRun(SDL_Renderer* r, std::string const& s, float x, float y, flo
 	}
 }
 
+float textWidth(std::string const& s, float px) { return textWidthRaw(T(s), px); }
+
 void text(SDL_Renderer* r, std::string const& s, float x, float y, float px, SDL_Color c, int align, bool shadow)
+{
+	textRaw(r, T(s), x, y, px, c, align, shadow);
+}
+
+void textRaw(SDL_Renderer* r, std::string const& s, float x, float y, float px, SDL_Color c, int align, bool shadow)
 {
 	if (!fontTex || s.empty()) return;
 	float k = px / atlasEm;
-	float w = textWidth(s, px);
+	float w = textWidthRaw(s, px);
 	if (align == Center) x -= w / 2;
 	else if (align == Right) x -= w;
 	// y is the vertical centre of the text line
